@@ -11,18 +11,10 @@ async function fetchCurrentUser(): Promise<{ user: User } | null> {
   try {
     return await apiClient<{ user: User }>('/auth/me', { schema: meResponseSchema });
   } catch (err) {
-    if (!(err instanceof ApiError && err.status === 401)) {
-      throw err;
-    }
-
-    try {
-      return await apiClient<{ user: User }>('/auth/refresh', {
-        method: 'POST',
-        schema: meResponseSchema,
-      });
-    } catch {
+    if (err instanceof ApiError && err.status === 401) {
       return null;
     }
+    throw err;
   }
 }
 
