@@ -1,7 +1,5 @@
 import type { NextConfig } from 'next';
 
-const apiProxyTarget = process.env.API_PROXY_TARGET;
-
 const nextConfig: NextConfig = {
   transpilePackages: ['@sis/shared'],
   eslint: {
@@ -9,15 +7,6 @@ const nextConfig: NextConfig = {
   },
   typescript: {
     ignoreBuildErrors: false,
-  },
-  async rewrites() {
-    if (!apiProxyTarget) return [];
-    return [
-      {
-        source: '/api-proxy/:path*',
-        destination: `${apiProxyTarget}/:path*`,
-      },
-    ];
   },
 };
 
