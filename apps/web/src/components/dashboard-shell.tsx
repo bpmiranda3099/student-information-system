@@ -73,18 +73,18 @@ export function DashboardShell({
         </div>
       </header>
 
-      <div className="flex">
+      <div className="flex min-h-screen">
         <aside
           id={ids.shell.sidebar}
           className={cn(
-            'fixed inset-y-0 left-0 z-40 w-56 border-r bg-background transition-transform md:static md:translate-x-0',
+            'fixed inset-y-0 left-0 z-40 flex w-56 flex-col border-r bg-background transition-transform md:static md:translate-x-0',
             mobileOpen ? 'translate-x-0' : '-translate-x-full',
           )}
         >
-          <div className="flex h-14 items-center border-b px-6">
+          <div className="flex h-14 shrink-0 items-center border-b px-6">
             <span className="text-sm font-semibold tracking-tight">Student Information System</span>
           </div>
-          <nav id={ids.shell.nav} className="space-y-1 p-4">
+          <nav id={ids.shell.nav} className="min-h-0 flex-1 space-y-1 overflow-y-auto p-4">
             {navItems.map((item) => (
               <Link
                 key={item.href}
@@ -100,7 +100,7 @@ export function DashboardShell({
               </Link>
             ))}
           </nav>
-          <div className="absolute bottom-0 w-full border-t p-4">
+          <div className="shrink-0 border-t p-4">
             <p id={ids.shell.userEmail} className="truncate text-xs text-muted-foreground">
               {user?.email}
             </p>
