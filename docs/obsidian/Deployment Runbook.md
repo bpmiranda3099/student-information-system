@@ -25,8 +25,31 @@ pnpm dev
 
 ## Vercel (Frontend)
 
-- Root directory: `apps/web`
-- Env: `NEXT_PUBLIC_API_URL=https://your-api.onrender.com`
+### Option A — GitHub import (recommended first time)
+
+1. Open [Import Git Repository](https://vercel.com/new/import?s=https://github.com/bpmiranda3099/student-information-system)
+2. **Root Directory:** `apps/web`
+3. **Framework:** Next.js (auto-detected)
+4. **Build Command:** `cd ../.. && pnpm exec turbo run build --filter=@sis/web` (from `vercel.json`)
+5. **Install Command:** `cd ../.. && pnpm install --frozen-lockfile`
+6. Add environment variables:
+
+| Variable | Example |
+|----------|---------|
+| `NEXT_PUBLIC_API_URL` | `https://sis-api.onrender.com` |
+| `NEXT_PUBLIC_SUPABASE_URL` | `https://uzjpuxulgdpgqrynyxvu.supabase.co` |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | your Supabase publishable key |
+
+7. Deploy. Vercel auto-deploys on every push to `main`.
+
+### Option B — Vercel CLI (after `vercel login`)
+
+```bash
+chmod +x scripts/vercel-setup.sh
+./scripts/vercel-setup.sh
+```
+
+Uses `vercel link --repo` per the Vercel monorepo plugin guidance.
 
 ## Render (API)
 

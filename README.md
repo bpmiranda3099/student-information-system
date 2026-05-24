@@ -94,9 +94,9 @@ The frontend never accesses Supabase directly. All data flows through the Expres
 
 ## Deployment
 
-- **Frontend**: Deploy `apps/web` to Vercel with `NEXT_PUBLIC_API_URL`
-- **Backend**: Deploy `apps/api` to Render using `render.yaml`
-- **Database**: Run `pnpm --filter @sis/api exec prisma migrate deploy` against Supabase
+- **Frontend (Vercel):** Import [github.com/bpmiranda3099/student-information-system](https://github.com/bpmiranda3099/student-information-system) with root directory `apps/web`, or run `./scripts/vercel-setup.sh` after `vercel login`
+- **Backend (Render):** Deploy `apps/api` using `render.yaml`
+- **Database:** Run `pnpm --filter @sis/api exec prisma migrate deploy` against Supabase
 
 See [docs/obsidian/Deployment Runbook.md](docs/obsidian/Deployment%20Runbook.md) for full instructions.
 
