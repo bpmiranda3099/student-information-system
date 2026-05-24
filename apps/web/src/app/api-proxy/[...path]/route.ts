@@ -1,6 +1,8 @@
 import { type NextRequest, NextResponse } from 'next/server';
 
 const API_TARGET = (process.env.API_PROXY_TARGET ?? 'http://localhost:4000').replace(/\/$/, '');
+const ACCESS_TOKEN_COOKIE = 'sis_access_token';
+const AUTH_TOKEN_PATHS = new Set(['auth/login', 'auth/register', 'auth/refresh']);
 
 export const dynamic = 'force-dynamic';
 
@@ -39,6 +41,38 @@ function applySetCookie(response: NextResponse, header: string): void {
   }
 
   response.cookies.set(name, value, options);
+}
+
+function readAccessTokenFromCookies(setCookies: string[]): string | null {
+  for (const raw of setCookies) {
+    if (!raw.startsWith(`${ACCESS_TOKEN_COOKIE}=`)) continue;
+    const value = raw.slice(ACCESS_TOKEN_COOKIE.length + 1).split(';')[0];
+    return value || null;
+  }
+  return null;
+}
+
+function injectAccessToken(
+  pathKey: string,
+  upstream: Response,
+  body: ArrayBuffer,
+): ArrayBuffer {
+  if (!AUTH_TOKEN_PATHS.has(pathKey) || upstream.status < 200 || upstream.status >= 300) {
+    return body;
+  }
+
+  const accessToken = readAccessTokenFromCookies(upstream.headers.getSetCookie());
+  if (!accessToken) return body;
+
+  try {
+    const json = JSON.parse(new TextDecoder().decode(body)) as Record<string, unknown>;
+    if (typeof json.accessToken === 'string') return body;
+    json.accessToken = accessToken;
+    const bytes = new TextEncoder().encode(JSON.stringify(json));
+    return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+  } catch {
+    return body;
+  }
 }
 
 const HOP_BY_HOP_HEADERS = new Set([
@@ -85,7 +119,9 @@ async function proxy(
     );
   }
 
-  const body = await upstream.arrayBuffer();
+  const pathKey = path.join('/');
+  const upstreamBody = await upstream.arrayBuffer();
+  const body = injectAccessToken(pathKey, upstream, upstreamBody);
   const responseHeaders = new Headers();
 
   upstream.headers.forEach((value, key) => {
