@@ -32,6 +32,7 @@ test-results
 # Prisma
 apps/api/prisma/*.db
 apps/api/prisma/*.db-journal
+apps/api/src/generated/
 
 # Logs
 *.log
