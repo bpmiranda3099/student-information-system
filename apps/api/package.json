@@ -12,6 +12,7 @@
     "test:integration": "node --experimental-vm-modules node_modules/jest/bin/jest.js --testPathPattern=integration",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
+    "db:deploy": "bash -c 'set -a && source .env && set +a && DATABASE_URL=\"$DIRECT_URL\" prisma migrate deploy'",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
