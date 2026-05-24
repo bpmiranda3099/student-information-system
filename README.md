@@ -51,7 +51,7 @@ cp apps/web/.env.example apps/web/.env.local
 # Build shared package and set up database
 pnpm --filter @sis/shared build
 pnpm --filter @sis/api db:generate
-pnpm --filter @sis/api db:push
+pnpm --filter @sis/api db:deploy   # uses DIRECT_URL (port 5432); do NOT use pooler 6543
 pnpm --filter @sis/api db:seed
 
 # Start dev servers (API :4000, Web :3000)
@@ -94,9 +94,9 @@ The frontend never accesses Supabase directly. All data flows through the Expres
 
 ## Deployment
 
-- **Frontend (Vercel):** Import [github.com/bpmiranda3099/student-information-system](https://github.com/bpmiranda3099/student-information-system) with root directory `apps/web`, or run `./scripts/vercel-setup.sh` after `vercel login`
+- **Frontend (Vercel):** Import [github.com/bpmiranda3099/student-information-system](https://github.com/bpmiranda3099/student-information-system) with root directory `apps/web`. Set `NEXT_PUBLIC_API_URL=/api-proxy` and `API_PROXY_TARGET` to your Render URL (see `apps/web/vercel.json`).
 - **Backend (Render):** [Create Blueprint](https://dashboard.render.com/blueprint/new?repo=https://github.com/bpmiranda3099/student-information-system) or run `./scripts/render-setup.sh`
-- **Database:** Run `pnpm --filter @sis/api exec prisma migrate deploy` against Supabase
+- **Database:** Run `pnpm --filter @sis/api db:deploy` against Supabase (requires `DIRECT_URL` on port 5432)
 
 See [docs/obsidian/Deployment Runbook.md](docs/obsidian/Deployment%20Runbook.md) for full instructions.
 

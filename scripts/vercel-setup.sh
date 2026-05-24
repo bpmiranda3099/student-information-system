@@ -27,12 +27,16 @@ cd "$WEB"
 vercel pull --yes --environment=production
 
 echo
-echo "==> Set production environment variables (update API URL after Render deploy)"
-read -r -p "Render API URL [https://sis-api.onrender.com]: " API_URL
-API_URL="${API_URL:-https://sis-api.onrender.com}"
+echo "==> Set production environment variables"
+read -r -p "Render API URL [https://sis-api-q3ra.onrender.com]: " API_PROXY_TARGET
+API_PROXY_TARGET="${API_PROXY_TARGET:-https://sis-api-q3ra.onrender.com}"
 
+# Browser calls same-origin /api-proxy; Next.js forwards to Render (avoids CORS).
 vercel env rm NEXT_PUBLIC_API_URL production --yes 2>/dev/null || true
-printf '%s' "$API_URL" | vercel env add NEXT_PUBLIC_API_URL production
+printf '%s' "/api-proxy" | vercel env add NEXT_PUBLIC_API_URL production
+
+vercel env rm API_PROXY_TARGET production --yes 2>/dev/null || true
+printf '%s' "$API_PROXY_TARGET" | vercel env add API_PROXY_TARGET production
 
 vercel env rm NEXT_PUBLIC_SUPABASE_URL production --yes 2>/dev/null || true
 printf '%s' "https://uzjpuxulgdpgqrynyxvu.supabase.co" | vercel env add NEXT_PUBLIC_SUPABASE_URL production
@@ -44,7 +48,8 @@ if [[ -n "$SUPABASE_KEY" ]]; then
 fi
 
 echo "==> Mirror env vars to preview"
-printf '%s' "$API_URL" | vercel env add NEXT_PUBLIC_API_URL preview 2>/dev/null || true
+printf '%s' "/api-proxy" | vercel env add NEXT_PUBLIC_API_URL preview 2>/dev/null || true
+printf '%s' "$API_PROXY_TARGET" | vercel env add API_PROXY_TARGET preview 2>/dev/null || true
 printf '%s' "https://uzjpuxulgdpgqrynyxvu.supabase.co" | vercel env add NEXT_PUBLIC_SUPABASE_URL preview 2>/dev/null || true
 [[ -n "${SUPABASE_KEY:-}" ]] && printf '%s' "$SUPABASE_KEY" | vercel env add NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY preview 2>/dev/null || true
 
@@ -57,3 +62,6 @@ vercel deploy
 echo
 echo "Done. Production deploy: cd apps/web && vercel --prod"
 echo "Dashboard: https://vercel.com/dashboard"
+echo
+echo "Also set on Render (sis-api):"
+echo "  CORS_ORIGINS=https://student-information-system-web.vercel.app,http://localhost:3000"

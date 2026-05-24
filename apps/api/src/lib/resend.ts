@@ -37,6 +37,30 @@ function getFromEmail(): string {
   return process.env.EMAIL_FROM ?? 'SIS <onboarding@resend.dev>';
 }
 
+function getDevRedirectTo(): string | undefined {
+  return process.env.RESEND_DEV_REDIRECT_TO?.trim() || undefined;
+}
+
+function isSandboxRestrictionError(message: string): boolean {
+  return /only send testing emails to your own email address/i.test(message);
+}
+
+function applyDevRedirect(input: SendEmailRequest): SendEmailRequest {
+  const redirect = getDevRedirectTo();
+  if (!redirect) return input;
+
+  const originalTo = Array.isArray(input.to) ? input.to.join(', ') : input.to;
+  if (originalTo === redirect) return input;
+
+  const banner = `<p style="color:#666;font-size:12px"><em>Dev redirect: intended for ${originalTo}</em></p>`;
+  return {
+    ...input,
+    to: redirect,
+    subject: `[DEV → ${originalTo}] ${input.subject}`,
+    html: `${banner}${input.html}`,
+  };
+}
+
 function isResendConfigured(): boolean {
   return Boolean(process.env.RESEND_API_KEY?.trim());
 }
@@ -69,7 +93,22 @@ export async function sendEmailMessage(input: SendEmailRequest) {
     console.log(`[Email skipped - no RESEND_API_KEY] To: ${JSON.stringify(input.to)}, Subject: ${input.subject}`);
     return { id: 'dev-skipped', object: 'email' as const };
   }
-  return unwrap(await getResendClient().emails.send(toEmailPayload(input)));
+
+  const payload = applyDevRedirect(input);
+  if (getDevRedirectTo() && payload.to !== input.to) {
+    console.log(
+      `[Email dev redirect] ${JSON.stringify(input.to)} → ${JSON.stringify(payload.to)} | ${input.subject}`,
+    );
+  }
+
+  const result = await getResendClient().emails.send(toEmailPayload(payload));
+  if (result.error && isSandboxRestrictionError(result.error.message) && !getDevRedirectTo()) {
+    throw new ResendServiceError(
+      `${result.error.message} Set RESEND_DEV_REDIRECT_TO=bpmiranda3099@gmail.com in apps/api/.env for local testing, or verify a domain at resend.com/domains.`,
+      502,
+    );
+  }
+  return unwrap(result);
 }
 
 export async function sendBatchEmailMessages(emails: SendEmailRequest[]) {
@@ -78,7 +117,7 @@ export async function sendBatchEmailMessages(emails: SendEmailRequest[]) {
     return { data: emails.map((_, index) => ({ id: `dev-skipped-${index}` })) };
   }
   return unwrap(
-    await getResendClient().batch.send(emails.map((email) => toEmailPayload(email))),
+    await getResendClient().batch.send(emails.map((email) => toEmailPayload(applyDevRedirect(email)))),
   );
 }
 

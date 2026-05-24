@@ -34,9 +34,10 @@ pnpm dev
 5. **Install Command:** `cd ../.. && pnpm install --frozen-lockfile`
 6. Add environment variables (Vercel Supabase integration sets most of these automatically):
 
-| Variable | Source |
+| Variable | Value |
 |----------|--------|
-| `NEXT_PUBLIC_API_URL` | Your Render API URL, e.g. `https://sis-api-q3ra.onrender.com` |
+| `NEXT_PUBLIC_API_URL` | `/api-proxy` (same-origin proxy — **not** the Render URL) |
+| `API_PROXY_TARGET` | Your Render API URL, e.g. `https://sis-api-q3ra.onrender.com` |
 | `NEXT_PUBLIC_SUPABASE_URL` | Auto from Supabase integration |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Auto from Supabase integration (web app accepts this or `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`) |
 
