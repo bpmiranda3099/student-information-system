@@ -17,6 +17,9 @@ import { errorHandler, notFoundHandler } from './middleware/error.js';
 const app: Express = express();
 const PORT = process.env.PORT ?? 4000;
 
+// Required behind Render/Vercel proxies for rate limiting and secure cookies
+app.set('trust proxy', 1);
+
 const corsOrigins = process.env.CORS_ORIGINS?.split(',') ?? [
   'http://localhost:3000',
   'http://127.0.0.1:3000',

@@ -38,6 +38,7 @@
     "zod": "^3.25.51"
   },
   "prisma": {
+    "schema": "prisma/schema.prisma",
     "seed": "tsx prisma/seed.ts"
   },
   "devDependencies": {

@@ -115,6 +115,8 @@ create_service() {
     --env-var "GEMINI_MODEL=${GEMINI_MODEL:-gemini-3.5-flash}" \
     --env-var "DATABASE_URL=${DATABASE_URL}" \
     --env-var "DIRECT_URL=${DIRECT_URL}" \
+    --env-var "JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET}" \
+    --env-var "JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}" \
     --env-var "SUPABASE_URL=${SUPABASE_URL}" \
     --env-var "SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}" \
     --env-var "GEMINI_API_KEY=${GEMINI_API_KEY}" \
