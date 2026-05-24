@@ -40,6 +40,14 @@ function applySetCookie(response: NextResponse, header: string): void {
   response.cookies.set(name, value, options);
 }
 
+const HOP_BY_HOP_HEADERS = new Set([
+  'transfer-encoding',
+  'connection',
+  'content-encoding',
+  'content-length',
+  'keep-alive',
+]);
+
 async function proxy(
   request: NextRequest,
   context: { params: Promise<{ path: string[] }> },
@@ -63,17 +71,28 @@ async function proxy(
     init.body = await request.arrayBuffer();
   }
 
-  const upstream = await fetch(targetUrl, init);
+  let upstream: Response;
+  try {
+    upstream = await fetch(targetUrl, init);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    return NextResponse.json(
+      { error: 'API unavailable', details: message },
+      { status: 502 },
+    );
+  }
+
+  const body = await upstream.arrayBuffer();
   const responseHeaders = new Headers();
 
   upstream.headers.forEach((value, key) => {
     const lower = key.toLowerCase();
-    if (lower !== 'set-cookie' && !['transfer-encoding', 'connection', 'content-encoding'].includes(lower)) {
+    if (lower !== 'set-cookie' && !HOP_BY_HOP_HEADERS.has(lower)) {
       responseHeaders.set(key, value);
     }
   });
 
-  const response = new NextResponse(upstream.body, {
+  const response = new NextResponse(body, {
     status: upstream.status,
     headers: responseHeaders,
   });
