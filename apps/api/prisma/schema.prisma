@@ -1,0 +1,349 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  student
+  faculty
+  admin
+}
+
+enum EnrollmentStatus {
+  pending
+  approved
+  dropped
+}
+
+enum TermStatus {
+  upcoming
+  active
+  archived
+}
+
+enum GradeComponentType {
+  quiz
+  seatwork
+  activity
+  project
+  exam
+  extracurricular
+}
+
+enum AttendanceStatus {
+  present
+  absent
+  late
+  excused
+}
+
+enum AiRequestStatus {
+  pending
+  completed
+  failed
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  firstName    String   @map("first_name")
+  lastName     String   @map("last_name")
+  role         Role
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  student Student?
+  faculty Faculty?
+  admin   Admin?
+
+  auditLogs AuditLog[]
+
+  @@map("users")
+}
+
+model Student {
+  id            String   @id @default(uuid())
+  userId        String   @unique @map("user_id")
+  studentNumber String   @unique @map("student_number")
+  programId     String   @map("program_id")
+  yearLevel     Int      @default(1) @map("year_level")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  program Program @relation(fields: [programId], references: [id])
+
+  enrollments      Enrollment[]
+  gradeEntries     GradeEntry[]
+  attendanceRecords AttendanceRecord[]
+  aiLessonRequests AiLessonRequest[]
+
+  @@map("students")
+}
+
+model Faculty {
+  id         String   @id @default(uuid())
+  userId     String   @unique @map("user_id")
+  employeeId String   @unique @map("employee_id")
+  department String?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  courseSections CourseSection[]
+
+  @@map("faculty")
+}
+
+model Admin {
+  id        String   @id @default(uuid())
+  userId    String   @unique @map("user_id")
+  title     String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("admins")
+}
+
+model Program {
+  id          String   @id @default(uuid())
+  code        String   @unique
+  name        String
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  students Student[]
+
+  @@map("programs")
+}
+
+model Subject {
+  id          String   @id @default(uuid())
+  code        String   @unique
+  title       String
+  units       Int
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  courseSections CourseSection[]
+
+  @@map("subjects")
+}
+
+model AcademicTerm {
+  id        String     @id @default(uuid())
+  name      String
+  year      Int
+  semester  Int
+  status    TermStatus @default(upcoming)
+  startDate DateTime   @map("start_date")
+  endDate   DateTime   @map("end_date")
+  createdAt DateTime   @default(now()) @map("created_at")
+
+  courseSections CourseSection[]
+
+  @@map("academic_terms")
+}
+
+model CourseSection {
+  id          String   @id @default(uuid())
+  subjectId   String   @map("subject_id")
+  termId      String   @map("term_id")
+  facultyId   String   @map("faculty_id")
+  sectionCode String   @map("section_code")
+  capacity    Int
+  schedule    String?
+  room        String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  subject Subject      @relation(fields: [subjectId], references: [id])
+  term    AcademicTerm @relation(fields: [termId], references: [id])
+  faculty Faculty      @relation(fields: [facultyId], references: [id])
+
+  enrollments        Enrollment[]
+  gradeScheme        GradeScheme?
+  attendanceSessions AttendanceSession[]
+  syllabus           Syllabus?
+
+  @@unique([subjectId, termId, sectionCode])
+  @@map("course_sections")
+}
+
+model Enrollment {
+  id         String           @id @default(uuid())
+  studentId  String           @map("student_id")
+  sectionId  String           @map("section_id")
+  status     EnrollmentStatus @default(pending)
+  enrolledAt DateTime         @default(now()) @map("enrolled_at")
+  createdAt  DateTime         @default(now()) @map("created_at")
+
+  student Student       @relation(fields: [studentId], references: [id])
+  section CourseSection @relation(fields: [sectionId], references: [id])
+
+  @@unique([studentId, sectionId])
+  @@map("enrollments")
+}
+
+model GradeScheme {
+  id                 String   @id @default(uuid())
+  sectionId          String   @unique @map("section_id")
+  isLocked           Boolean  @default(false) @map("is_locked")
+  extracurricularMax Float    @default(5) @map("extracurricular_max")
+  categoryWeights    Json     @map("category_weights")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  section    CourseSection    @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  components GradeComponent[]
+
+  @@map("grade_schemes")
+}
+
+model GradeComponent {
+  id        String             @id @default(uuid())
+  schemeId  String             @map("scheme_id")
+  type      GradeComponentType
+  name      String
+  maxScore  Float              @map("max_score")
+  sequence  Int                @default(0)
+  topicTags Json               @default("[]") @map("topic_tags")
+  createdAt DateTime           @default(now()) @map("created_at")
+
+  scheme  GradeScheme  @relation(fields: [schemeId], references: [id], onDelete: Cascade)
+  entries GradeEntry[]
+
+  @@map("grade_components")
+}
+
+model GradeEntry {
+  id          String   @id @default(uuid())
+  studentId   String   @map("student_id")
+  componentId String   @map("component_id")
+  score       Float
+  recordedAt  DateTime @default(now()) @map("recorded_at")
+
+  student   Student        @relation(fields: [studentId], references: [id])
+  component GradeComponent @relation(fields: [componentId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, componentId])
+  @@map("grade_entries")
+}
+
+model AttendanceSession {
+  id        String   @id @default(uuid())
+  sectionId String   @map("section_id")
+  date      DateTime @db.Date
+  topic     String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  section CourseSection      @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  records AttendanceRecord[]
+
+  @@map("attendance_sessions")
+}
+
+model AttendanceRecord {
+  id        String           @id @default(uuid())
+  sessionId String           @map("session_id")
+  studentId String           @map("student_id")
+  status    AttendanceStatus
+  notes     String?
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  session AttendanceSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  student Student           @relation(fields: [studentId], references: [id])
+
+  @@unique([sessionId, studentId])
+  @@map("attendance_records")
+}
+
+model Syllabus {
+  id          String   @id @default(uuid())
+  sectionId   String   @unique @map("section_id")
+  title       String
+  description String?
+  filePath    String?  @map("file_path")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  section CourseSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  lessons Lesson[]
+
+  @@map("syllabi")
+}
+
+model Lesson {
+  id         String   @id @default(uuid())
+  syllabusId String   @map("syllabus_id")
+  title      String
+  week       Int
+  topics     Json     @default("[]")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  syllabus         Syllabus          @relation(fields: [syllabusId], references: [id], onDelete: Cascade)
+  files            LessonFile[]
+  aiLessonRequests AiLessonRequest[]
+
+  @@map("lessons")
+}
+
+model LessonFile {
+  id        String   @id @default(uuid())
+  lessonId  String   @map("lesson_id")
+  fileName  String   @map("file_name")
+  filePath  String   @map("file_path")
+  mimeType  String   @map("mime_type")
+  fileSize  Int      @map("file_size")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@map("lesson_files")
+}
+
+model AiLessonRequest {
+  id         String          @id @default(uuid())
+  studentId  String          @map("student_id")
+  lessonId   String          @map("lesson_id")
+  weakTopics Json            @map("weak_topics")
+  prompt     String
+  response   String?
+  status     AiRequestStatus @default(pending)
+  createdAt  DateTime        @default(now()) @map("created_at")
+
+  student Student @relation(fields: [studentId], references: [id])
+  lesson  Lesson  @relation(fields: [lessonId], references: [id])
+
+  @@map("ai_lesson_requests")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?  @map("user_id")
+  action    String
+  entity    String
+  entityId  String?  @map("entity_id")
+  metadata  Json?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@map("audit_logs")
+}
+
+model MaintenanceJob {
+  id          String   @id @default(uuid())
+  type        String
+  status      String   @default("pending")
+  payload     Json?
+  result      Json?
+  startedAt   DateTime? @map("started_at")
+  completedAt DateTime? @map("completed_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("maintenance_jobs")
+}

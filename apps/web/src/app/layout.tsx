@@ -1,0 +1,23 @@
+import type { Metadata } from 'next';
+import { GeistSans } from 'geist/font/sans';
+import { Providers } from '@/components/providers';
+import './globals.css';
+import { Geist } from "next/font/google";
+import { cn } from "@/lib/utils";
+
+const geist = Geist({subsets:['latin'],variable:'--font-sans'});
+
+export const metadata: Metadata = {
+  title: 'Student Information System',
+  description: 'College student information management',
+};
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en" suppressHydrationWarning className={cn("font-sans", geist.variable)}>
+      <body className={GeistSans.className}>
+        <Providers>{children}</Providers>
+      </body>
+    </html>
+  );
+}
