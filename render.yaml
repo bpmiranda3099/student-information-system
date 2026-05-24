@@ -41,3 +41,5 @@ services:
         sync: false
       - key: CORS_ORIGINS
         sync: false
+      - key: COOKIE_SAME_SITE
+        value: lax

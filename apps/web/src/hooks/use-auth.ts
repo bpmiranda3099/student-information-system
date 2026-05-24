@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { authResponseSchema, type User } from '@sis/shared';
-import { apiClient } from '@/lib/api-client';
+import { apiClient, ApiError } from '@/lib/api-client';
 import { z } from 'zod';
 
 const meResponseSchema = z.object({ user: authResponseSchema.shape.user });
@@ -12,14 +12,25 @@ export function useAuth() {
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['auth', 'me'],
-    queryFn: () => apiClient<{ user: User }>('/auth/me', { schema: meResponseSchema }),
+    queryFn: async () => {
+      try {
+        return await apiClient<{ user: User }>('/auth/me', { schema: meResponseSchema });
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 401) {
+          return null;
+        }
+        throw err;
+      }
+    },
     retry: false,
   });
 
   const loginMutation = useMutation({
     mutationFn: (credentials: { email: string; password: string }) =>
       apiClient('/auth/login', { method: 'POST', body: credentials, schema: meResponseSchema }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['auth'] }),
+    onSuccess: (result) => {
+      queryClient.setQueryData(['auth', 'me'], result);
+    },
   });
 
   const logoutMutation = useMutation({

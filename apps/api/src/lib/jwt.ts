@@ -32,10 +32,17 @@ export function verifyRefreshToken(token: string): JwtPayload {
 
 export function setAuthCookies(res: Response, accessToken: string, refreshToken: string): void {
   const isProduction = process.env.NODE_ENV === 'production';
+  // SameSite=None required for cross-origin (direct API). Lax works when web proxies API.
+  const sameSite =
+    process.env.COOKIE_SAME_SITE === 'lax'
+      ? ('lax' as const)
+      : isProduction
+        ? ('none' as const)
+        : ('lax' as const);
   const cookieOptions = {
     httpOnly: true,
     secure: isProduction,
-    sameSite: isProduction ? ('none' as const) : ('lax' as const),
+    sameSite,
     path: '/',
   };
 
@@ -51,6 +58,14 @@ export function setAuthCookies(res: Response, accessToken: string, refreshToken:
 }
 
 export function clearAuthCookies(res: Response): void {
-  res.clearCookie(COOKIE_NAMES.accessToken, { path: '/' });
-  res.clearCookie(COOKIE_NAMES.refreshToken, { path: '/' });
+  const isProduction = process.env.NODE_ENV === 'production';
+  const sameSite =
+    process.env.COOKIE_SAME_SITE === 'lax'
+      ? ('lax' as const)
+      : isProduction
+        ? ('none' as const)
+        : ('lax' as const);
+  const options = { path: '/', secure: isProduction, sameSite };
+  res.clearCookie(COOKIE_NAMES.accessToken, options);
+  res.clearCookie(COOKIE_NAMES.refreshToken, options);
 }

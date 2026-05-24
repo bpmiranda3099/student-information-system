@@ -4,6 +4,7 @@
   "installCommand": "cd ../.. && pnpm install --frozen-lockfile --filter @sis/web...",
   "buildCommand": "cd ../.. && pnpm exec turbo run build --filter=@sis/web",
   "env": {
-    "NEXT_PUBLIC_API_URL": "https://sis-api-q3ra.onrender.com"
+    "NEXT_PUBLIC_API_URL": "/api-proxy",
+    "API_PROXY_TARGET": "https://sis-api-q3ra.onrender.com"
   }
 }
