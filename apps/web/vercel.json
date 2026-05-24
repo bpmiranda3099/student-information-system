@@ -6,5 +6,11 @@
   "env": {
     "NEXT_PUBLIC_API_URL": "/api-proxy",
     "API_PROXY_TARGET": "https://sis-api-q3ra.onrender.com"
-  }
+  },
+  "rewrites": [
+    {
+      "source": "/api-proxy/:path*",
+      "destination": "https://sis-api-q3ra.onrender.com/:path*"
+    }
+  ]
 }
