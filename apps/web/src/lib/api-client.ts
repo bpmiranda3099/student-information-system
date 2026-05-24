@@ -1,5 +1,6 @@
 import { type ZodSchema } from 'zod';
 import { apiErrorSchema } from '@sis/shared';
+import { getAccessToken } from '@/lib/auth-session';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
@@ -20,6 +21,18 @@ interface RequestOptions {
   schema?: ZodSchema;
 }
 
+function buildHeaders(body?: unknown): HeadersInit | undefined {
+  const headers: Record<string, string> = {};
+  const token = getAccessToken();
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+  if (body) {
+    headers['Content-Type'] = 'application/json';
+  }
+  return Object.keys(headers).length > 0 ? headers : undefined;
+}
+
 export async function apiClient<T>(
   path: string,
   options: RequestOptions = {},
@@ -29,7 +42,7 @@ export async function apiClient<T>(
   const res = await fetch(`${API_URL}${path}`, {
     method,
     credentials: 'include',
-    headers: body ? { 'Content-Type': 'application/json' } : undefined,
+    headers: buildHeaders(body),
     body: body ? JSON.stringify(body) : undefined,
   });
 
@@ -56,9 +69,11 @@ export async function apiClient<T>(
 }
 
 export async function apiUpload<T>(path: string, formData: FormData): Promise<T> {
+  const token = getAccessToken();
   const res = await fetch(`${API_URL}${path}`, {
     method: 'POST',
     credentials: 'include',
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
     body: formData,
   });
 

@@ -41,7 +41,7 @@ router.post('/login', authLimiter, validateBody(loginRequestSchema), async (req,
     const refreshToken = signRefreshToken(payload);
     setAuthCookies(res, accessToken, refreshToken);
 
-    res.json({ user: serializeUser(user) });
+    res.json({ user: serializeUser(user), accessToken });
   } catch (err) {
     next(err);
   }
@@ -89,9 +89,11 @@ router.post('/register', authLimiter, validateBody(registerRequestSchema), async
     });
 
     const payload = { userId: user.id, email: user.email, role: user.role };
-    setAuthCookies(res, signAccessToken(payload), signRefreshToken(payload));
+    const accessToken = signAccessToken(payload);
+    const refreshToken = signRefreshToken(payload);
+    setAuthCookies(res, accessToken, refreshToken);
 
-    res.status(201).json({ user: serializeUser(user) });
+    res.status(201).json({ user: serializeUser(user), accessToken });
   } catch (err) {
     next(err);
   }
@@ -113,8 +115,10 @@ router.post('/refresh', authLimiter, async (req, res) => {
     }
 
     const newPayload = { userId: user.id, email: user.email, role: user.role };
-    setAuthCookies(res, signAccessToken(newPayload), signRefreshToken(newPayload));
-    res.json({ user: serializeUser(user) });
+    const accessToken = signAccessToken(newPayload);
+    const refreshToken = signRefreshToken(newPayload);
+    setAuthCookies(res, accessToken, refreshToken);
+    res.json({ user: serializeUser(user), accessToken });
   } catch {
     res.status(401).json({ error: 'Invalid refresh token' });
   }

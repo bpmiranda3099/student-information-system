@@ -4,6 +4,43 @@ const API_TARGET = (process.env.API_PROXY_TARGET ?? 'http://localhost:4000').rep
 
 export const dynamic = 'force-dynamic';
 
+type CookieOptions = NonNullable<Parameters<NextResponse['cookies']['set']>[2]>;
+
+function applySetCookie(response: NextResponse, header: string): void {
+  const parts = header.split(';').map((part) => part.trim());
+  const nameValue = parts[0];
+  if (!nameValue) return;
+
+  const eqIdx = nameValue.indexOf('=');
+  if (eqIdx === -1) return;
+
+  const name = nameValue.slice(0, eqIdx);
+  const value = nameValue.slice(eqIdx + 1);
+  const options: CookieOptions = { path: '/' };
+
+  for (const attr of parts.slice(1)) {
+    const lower = attr.toLowerCase();
+    if (lower === 'httponly') {
+      options.httpOnly = true;
+    } else if (lower === 'secure') {
+      options.secure = true;
+    } else if (lower.startsWith('path=')) {
+      options.path = attr.slice(5);
+    } else if (lower.startsWith('max-age=')) {
+      options.maxAge = Number.parseInt(attr.slice(8), 10);
+    } else if (lower.startsWith('samesite=')) {
+      const sameSite = attr.slice(9).toLowerCase();
+      if (sameSite === 'lax' || sameSite === 'strict' || sameSite === 'none') {
+        options.sameSite = sameSite;
+      }
+    } else if (lower.startsWith('expires=')) {
+      options.expires = new Date(attr.slice(8));
+    }
+  }
+
+  response.cookies.set(name, value, options);
+}
+
 const HOP_BY_HOP_HEADERS = new Set([
   'transfer-encoding',
   'connection',
@@ -22,6 +59,8 @@ async function proxy(
   const headers = new Headers();
   const contentType = request.headers.get('content-type');
   if (contentType) headers.set('content-type', contentType);
+  const authorization = request.headers.get('authorization');
+  if (authorization) headers.set('authorization', authorization);
   const cookie = request.headers.get('cookie');
   if (cookie) headers.set('cookie', cookie);
 
@@ -61,9 +100,8 @@ async function proxy(
     headers: responseHeaders,
   });
 
-  // Forward each Set-Cookie separately so browsers store auth cookies correctly.
   for (const setCookie of upstream.headers.getSetCookie()) {
-    response.headers.append('Set-Cookie', setCookie);
+    applySetCookie(response, setCookie);
   }
 
   return response;

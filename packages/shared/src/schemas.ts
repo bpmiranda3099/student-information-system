@@ -42,6 +42,7 @@ export const userSchema = z.object({
 
 export const authResponseSchema = z.object({
   user: userSchema,
+  accessToken: z.string().optional(),
 });
 
 export const programSchema = z.object({
