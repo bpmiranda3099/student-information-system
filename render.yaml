@@ -3,9 +3,19 @@ services:
     name: sis-api
     runtime: node
     plan: free
-    buildCommand: cd ../.. && pnpm install && pnpm --filter @sis/shared build && pnpm --filter @sis/api db:generate && pnpm --filter @sis/api build
-    startCommand: cd apps/api && node dist/index.js
+    buildCommand: pnpm install --frozen-lockfile && pnpm --filter @sis/api db:generate && pnpm exec turbo run build --filter=@sis/api
+    preDeployCommand: pnpm --filter @sis/api exec prisma migrate deploy
+    startCommand: node apps/api/dist/index.js
     healthCheckPath: /health
+    buildFilter:
+      paths:
+        - apps/api/**
+        - packages/shared/**
+        - pnpm-lock.yaml
+        - package.json
+        - pnpm-workspace.yaml
+        - turbo.json
+        - render.yaml
     envVars:
       - key: NODE_ENV
         value: production

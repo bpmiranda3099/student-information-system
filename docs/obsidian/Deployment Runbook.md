@@ -53,9 +53,56 @@ Uses `vercel link --repo` per the Vercel monorepo plugin guidance.
 
 ## Render (API)
 
-- Use `render.yaml` blueprint
-- Set env vars: DATABASE_URL, SUPABASE_*, GEMINI_API_KEY, RESEND_API_KEY, CORS_ORIGINS
-- Run migrations: `pnpm --filter @sis/api exec prisma migrate deploy`
+### Option A — Blueprint (recommended)
+
+1. Open [Create Blueprint](https://dashboard.render.com/blueprint/new?repo=https://github.com/bpmiranda3099/student-information-system)
+2. Review `render.yaml` (service: `sis-api`)
+3. Set secret env vars when prompted:
+
+| Variable | Notes |
+|----------|-------|
+| `DATABASE_URL` | Supabase Postgres connection string |
+| `SUPABASE_URL` | `https://uzjpuxulgdpgqrynyxvu.supabase.co` |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key |
+| `GEMINI_API_KEY` | Google AI Studio key |
+| `RESEND_API_KEY` | Resend API key |
+| `EMAIL_FROM` | e.g. `SIS <onboarding@resend.dev>` |
+| `CORS_ORIGINS` | Your Vercel URL (comma-separated) |
+
+4. Deploy. Migrations run via `preDeployCommand` on each deploy.
+
+### Option B — CLI helper
+
+```bash
+chmod +x scripts/render-setup.sh
+./scripts/render-setup.sh
+```
+
+### Render agent skills (Cursor)
+
+Installed via:
+
+```bash
+render skills install --tool cursor --skill render-deploy --skill render-debug --skill render-monitor
+```
+
+Skills live in `~/.cursor/skills/render-*`. Example prompts: *Deploy my application to Render*, *Debug my Render deployment*, *Is my Render service healthy?*
+
+### Render MCP (Cursor)
+
+1. Create an API key at [Render Account Settings](https://dashboard.render.com/u/settings#api-keys)
+2. Add to `~/.cursor/mcp.json`:
+
+```json
+"render": {
+  "url": "https://mcp.render.com/mcp",
+  "headers": {
+    "Authorization": "Bearer YOUR_RENDER_API_KEY"
+  }
+}
+```
+
+3. Restart Cursor and prompt: `Set my Render workspace to [your workspace]`
 
 ## Post-Deploy
 
