@@ -1,21 +1,23 @@
+import { cookies } from 'next/headers';
 import { type NextRequest, NextResponse } from 'next/server';
 
 const API_TARGET = (process.env.API_PROXY_TARGET ?? 'http://localhost:4000').replace(/\/$/, '');
 
 export const dynamic = 'force-dynamic';
 
-type CookieOptions = NonNullable<Parameters<NextResponse['cookies']['set']>[2]>;
+type CookieSetOptions = NonNullable<Parameters<Awaited<ReturnType<typeof cookies>>['set']>[2]>;
 
-function applySetCookie(response: NextResponse, header: string): void {
+function parseSetCookie(header: string): { name: string; value: string; options: CookieSetOptions } | null {
   const parts = header.split(';').map((part) => part.trim());
   const nameValue = parts[0];
-  if (!nameValue) return;
+  if (!nameValue) return null;
+
   const eqIdx = nameValue.indexOf('=');
-  if (eqIdx === -1) return;
+  if (eqIdx === -1) return null;
 
   const name = nameValue.slice(0, eqIdx);
   const value = nameValue.slice(eqIdx + 1);
-  const options: CookieOptions = {};
+  const options: CookieSetOptions = { path: '/' };
 
   for (const attr of parts.slice(1)) {
     const lower = attr.toLowerCase();
@@ -37,7 +39,26 @@ function applySetCookie(response: NextResponse, header: string): void {
     }
   }
 
-  response.cookies.set(name, value, options);
+  return { name, value, options };
+}
+
+async function applyUpstreamCookies(upstream: Response): Promise<void> {
+  const setCookies = upstream.headers.getSetCookie();
+  if (setCookies.length === 0) return;
+
+  const cookieStore = await cookies();
+  for (const raw of setCookies) {
+    const parsed = parseSetCookie(raw);
+    if (!parsed) continue;
+
+    const { name, value, options } = parsed;
+    if (options.maxAge === 0 || value === '') {
+      cookieStore.delete(name);
+      continue;
+    }
+
+    cookieStore.set(name, value, options);
+  }
 }
 
 const HOP_BY_HOP_HEADERS = new Set([
@@ -82,6 +103,8 @@ async function proxy(
     );
   }
 
+  await applyUpstreamCookies(upstream);
+
   const body = await upstream.arrayBuffer();
   const responseHeaders = new Headers();
 
@@ -92,17 +115,10 @@ async function proxy(
     }
   });
 
-  const response = new NextResponse(body, {
+  return new NextResponse(body, {
     status: upstream.status,
     headers: responseHeaders,
   });
-
-  // Must set each cookie individually — comma-joined Set-Cookie breaks browsers.
-  for (const setCookie of upstream.headers.getSetCookie()) {
-    applySetCookie(response, setCookie);
-  }
-
-  return response;
 }
 
 export const GET = proxy;

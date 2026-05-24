@@ -7,21 +7,33 @@ import { z } from 'zod';
 
 const meResponseSchema = z.object({ user: authResponseSchema.shape.user });
 
+async function fetchCurrentUser(): Promise<{ user: User } | null> {
+  try {
+    return await apiClient<{ user: User }>('/auth/me', { schema: meResponseSchema });
+  } catch (err) {
+    if (!(err instanceof ApiError && err.status === 401)) {
+      throw err;
+    }
+
+    try {
+      return await apiClient<{ user: User }>('/auth/refresh', {
+        method: 'POST',
+        schema: meResponseSchema,
+      });
+    } catch {
+      return null;
+    }
+  }
+}
+
 export function useAuth() {
   const queryClient = useQueryClient();
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['auth', 'me'],
-    queryFn: async () => {
-      try {
-        return await apiClient<{ user: User }>('/auth/me', { schema: meResponseSchema });
-      } catch (err) {
-        if (err instanceof ApiError && err.status === 401) {
-          return null;
-        }
-        throw err;
-      }
-    },
+    queryFn: fetchCurrentUser,
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
     retry: false,
   });
 
