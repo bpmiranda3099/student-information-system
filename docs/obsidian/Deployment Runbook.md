@@ -32,13 +32,13 @@ pnpm dev
 3. **Framework:** Next.js (auto-detected)
 4. **Build Command:** `cd ../.. && pnpm exec turbo run build --filter=@sis/web` (from `vercel.json`)
 5. **Install Command:** `cd ../.. && pnpm install --frozen-lockfile`
-6. Add environment variables:
+6. Add environment variables (Vercel Supabase integration sets most of these automatically):
 
-| Variable | Example |
-|----------|---------|
-| `NEXT_PUBLIC_API_URL` | `https://sis-api.onrender.com` |
-| `NEXT_PUBLIC_SUPABASE_URL` | `https://uzjpuxulgdpgqrynyxvu.supabase.co` |
-| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | your Supabase publishable key |
+| Variable | Source |
+|----------|--------|
+| `NEXT_PUBLIC_API_URL` | Your Render API URL, e.g. `https://sis-api-q3ra.onrender.com` |
+| `NEXT_PUBLIC_SUPABASE_URL` | Auto from Supabase integration |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Auto from Supabase integration (web app accepts this or `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`) |
 
 7. Deploy. Vercel auto-deploys on every push to `main`.
 
@@ -57,17 +57,17 @@ Uses `vercel link --repo` per the Vercel monorepo plugin guidance.
 
 1. Open [Create Blueprint](https://dashboard.render.com/blueprint/new?repo=https://github.com/bpmiranda3099/student-information-system)
 2. Review `render.yaml` (service: `sis-api`)
-3. Set secret env vars when prompted:
+3. Set secret env vars when prompted (copy Postgres vars from Vercel → Settings → Environment Variables):
 
-| Variable | Notes |
-|----------|-------|
-| `DATABASE_URL` | Supabase Postgres connection string |
-| `SUPABASE_URL` | `https://uzjpuxulgdpgqrynyxvu.supabase.co` |
-| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key |
-| `GEMINI_API_KEY` | Google AI Studio key |
-| `RESEND_API_KEY` | Resend API key |
-| `EMAIL_FROM` | e.g. `SIS <onboarding@resend.dev>` |
-| `CORS_ORIGINS` | Your Vercel URL (comma-separated) |
+| Render (API) | Copy from Vercel Supabase integration |
+|--------------|----------------------------------------|
+| `DATABASE_URL` | `POSTGRES_PRISMA_URL` (best for Prisma) |
+| `SUPABASE_URL` | `SUPABASE_URL` |
+| `SUPABASE_SERVICE_ROLE_KEY` | `SUPABASE_SERVICE_ROLE_KEY` |
+| `GEMINI_API_KEY` | (manual) |
+| `RESEND_API_KEY` | (manual) |
+| `EMAIL_FROM` | (manual) |
+| `CORS_ORIGINS` | Your Vercel production URL |
 
 4. Deploy. Migrations run via `preDeployCommand` on each deploy.
 
@@ -103,6 +103,79 @@ Skills live in `~/.cursor/skills/render-*`. Example prompts: *Deploy my applicat
 ```
 
 3. Restart Cursor and prompt: `Set my Render workspace to [your workspace]`
+
+### Option C — CLI deploy
+
+The CLI **cannot apply** `render.yaml` as a Blueprint (only validates it). Use CLI to **create** the service or **trigger redeploys** after it exists.
+
+```bash
+render login
+render workspace set <your-workspace-id>   # if needed
+chmod +x scripts/render-deploy-cli.sh
+./scripts/render-deploy-cli.sh             # reads apps/api/.env
+```
+
+Manual commands:
+
+```bash
+# List services
+render services -o json
+
+# Trigger deploy (after service exists)
+render deploys create srv-XXXX --wait
+
+# Stream logs
+render logs srv-XXXX
+```
+
+Auto-deploy also runs on every push to `main` once the GitHub repo is connected in Render.
+
+## Supabase GitHub Integration
+
+This repo uses **Prisma** for schema and migrations (`apps/api/prisma/`). The Express API applies them on Render via `prisma migrate deploy` in `render.yaml`. Supabase is the **hosted Postgres + Storage** provider, not the migration source of truth.
+
+### Working directory (Supabase dashboard)
+
+When connecting this GitHub repo in Supabase → **Project Settings → Integrations → GitHub**, set:
+
+| Field | Value |
+|-------|--------|
+| **Working directory** | `.` |
+
+`supabase/` does not exist in this repo yet and is **not required** for the current architecture. If you add it later, place it at the repository root (not under `apps/web` or `apps/api`).
+
+### What to use instead of Supabase migrations
+
+| Concern | Tool |
+|---------|------|
+| Schema changes | Edit `apps/api/prisma/schema.prisma`, run `pnpm --filter @sis/api db:migrate`, commit `prisma/migrations/` |
+| Production deploy | Render `preDeployCommand`: `pnpm --filter @sis/api exec prisma migrate deploy` |
+| Web env vars | Vercel **Supabase integration** (already connected) |
+| API database URL | Render `DATABASE_URL` = Supabase session pooler / Prisma URL (same value as Vercel `POSTGRES_PRISMA_URL`) |
+
+### Do **not** run (unless you migrate off Prisma)
+
+```bash
+supabase init
+supabase db pull --db-url ...
+git add supabase && git commit -m "Initial migration"
+```
+
+`supabase db pull` creates SQL migrations in `supabase/migrations/` that **conflict** with Prisma. Enabling **Deploy to production** in the Supabase GitHub integration would try to apply those migrations alongside Prisma and can break the database.
+
+### When Supabase GitHub integration *would* make sense
+
+Enable it only if you adopt Supabase-native workflows:
+
+- Edge Functions in `supabase/functions/`
+- Declarative Storage buckets in `supabase/config.toml`
+- Preview branches that run **Supabase** migrations (replacing Prisma)
+
+Until then, skip the Supabase GitHub integration or connect the repo **without** “Deploy to production” and **without** a `supabase/migrations/` folder.
+
+### Optional: preview-branch failure check
+
+If you later add `supabase/` and enable preview branches, you can require the Supabase check on PRs (see Supabase docs for `.github/workflows/notify-failure.yaml`).
 
 ## Post-Deploy
 

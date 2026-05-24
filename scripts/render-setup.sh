@@ -39,3 +39,14 @@ echo
 echo "Optional — CLI auth:"
 echo "  render login"
 echo "  render whoami -o json"
+echo
+echo "==> Deploy via CLI (after login)"
+echo "  chmod +x scripts/render-deploy-cli.sh"
+echo "  ./scripts/render-deploy-cli.sh"
+echo
+echo "  Creates 'sis-api' if missing (env from apps/api/.env), then runs:"
+echo "  render deploys create <service-id> --wait"
+echo
+echo "  Redeploy only (service already exists):"
+echo "  render services -o json | grep sis-api"
+echo "  render deploys create srv-XXXX --wait"
