@@ -72,3 +72,50 @@ export function parseScheduleText(schedule: string | null | undefined): {
   }
   return results;
 }
+
+export function meetingsOverlap(
+  a: { dayOfWeek: number; startTime: string; endTime: string; room?: string | null },
+  b: { dayOfWeek: number; startTime: string; endTime: string; room?: string | null },
+): boolean {
+  if (a.dayOfWeek !== b.dayOfWeek) return false;
+  if (a.startTime >= b.endTime || b.startTime >= a.endTime) return false;
+  if (a.room && b.room && a.room === b.room) return true;
+  return true;
+}
+
+export function findScheduleConflicts(
+  sections: {
+    sectionId: string;
+    sectionCode: string;
+    meetings: { dayOfWeek: number; startTime: string; endTime: string; room?: string | null }[];
+  }[],
+): { sectionA: string; sectionB: string; dayOfWeek: number; startTime: string; endTime: string }[] {
+  const conflicts: {
+    sectionA: string;
+    sectionB: string;
+    dayOfWeek: number;
+    startTime: string;
+    endTime: string;
+  }[] = [];
+
+  for (let i = 0; i < sections.length; i++) {
+    for (let j = i + 1; j < sections.length; j++) {
+      const secA = sections[i]!;
+      const secB = sections[j]!;
+      for (const ma of secA.meetings) {
+        for (const mb of secB.meetings) {
+          if (meetingsOverlap(ma, mb)) {
+            conflicts.push({
+              sectionA: secA.sectionCode,
+              sectionB: secB.sectionCode,
+              dayOfWeek: ma.dayOfWeek,
+              startTime: ma.startTime,
+              endTime: ma.endTime,
+            });
+          }
+        }
+      }
+    }
+  }
+  return conflicts;
+}

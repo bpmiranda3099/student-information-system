@@ -1,27 +1,41 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { RoleGuard } from '@/components/role-guard';
 import { PageHeader } from '@/components/page-header';
 import { StatCard } from '@/components/stat-card';
-import { EmptyState } from '@/components/empty-state';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  InteractiveTimetable,
+  useScheduleConflicts,
+} from '@/components/interactive-timetable';
 import { apiClient } from '@/lib/api-client';
-import { ids } from '@/lib/element-ids';
-import type { CourseSection, Enrollment } from '@sis/shared';
+import type { AvailableSection, Enrollment } from '@sis/shared';
 
 export default function StudentEnrollmentPage() {
   const queryClient = useQueryClient();
-  const [search, setSearch] = useState('');
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [termId, setTermId] = useState<string | null>(null);
 
-  const { data: sections, isLoading } = useQuery({
-    queryKey: ['sections'],
-    queryFn: () => apiClient<{ sections: CourseSection[] }>('/sections'),
+  const { data: availableData, isLoading } = useQuery({
+    queryKey: ['available-sections'],
+    queryFn: () =>
+      apiClient<{ sections: AvailableSection[]; term: { id: string; name: string } | null }>(
+        '/students/me/available-sections',
+      ),
+  });
+
+  const { data: draftData } = useQuery({
+    queryKey: ['schedule-draft', termId],
+    queryFn: () =>
+      apiClient<{ draft: { termId: string | null; sectionIds: string[] } }>(
+        `/students/me/schedule-draft${termId ? `?termId=${termId}` : ''}`,
+      ),
+    enabled: !!availableData,
   });
 
   const { data: enrollments } = useQuery({
@@ -29,103 +43,110 @@ export default function StudentEnrollmentPage() {
     queryFn: () => apiClient<{ enrollments: Enrollment[] }>('/enrollments'),
   });
 
-  const enrollMutation = useMutation({
-    mutationFn: (sectionId: string) =>
-      apiClient('/enrollments', { method: 'POST', body: { sectionId } }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['enrollments'] });
-      toast.success('Enrollment request submitted');
-    },
+  useEffect(() => {
+    if (availableData?.term?.id) setTermId(availableData.term.id);
+  }, [availableData?.term?.id]);
+
+  useEffect(() => {
+    if (draftData?.draft.sectionIds.length) {
+      setSelectedIds(draftData.draft.sectionIds);
+    }
+  }, [draftData]);
+
+  const sections = availableData?.sections ?? [];
+  const conflicts = useScheduleConflicts(sections, selectedIds);
+
+  const saveDraftMutation = useMutation({
+    mutationFn: () =>
+      apiClient('/students/me/schedule-draft', {
+        method: 'PUT',
+        body: { termId: termId!, sectionIds: selectedIds },
+      }),
+    onSuccess: () => toast.success('Draft saved'),
     onError: (err: Error) => toast.error(err.message),
   });
 
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return sections?.sections ?? [];
-    return (sections?.sections ?? []).filter((s) => {
-      const haystack = `${s.subject?.code} ${s.subject?.title} ${s.sectionCode} ${s.schedule ?? ''}`.toLowerCase();
-      return haystack.includes(q);
-    });
-  }, [sections, search]);
+  const submitMutation = useMutation({
+    mutationFn: () =>
+      apiClient('/students/me/schedule-submit', {
+        method: 'POST',
+        body: { termId: termId!, sectionIds: selectedIds },
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['enrollments'] });
+      toast.success('Schedule submitted');
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
 
   const pendingCount = enrollments?.enrollments.filter((e) => e.status === 'pending').length ?? 0;
   const approvedCount = enrollments?.enrollments.filter((e) => e.status === 'approved').length ?? 0;
 
   return (
     <RoleGuard role="student">
-      <div id={ids.student.enrollment.page} className="space-y-8">
+      <div className="space-y-8">
         <PageHeader
-          titleId={ids.student.enrollment.title}
-          title="Enrollment"
-          description="Browse and request section enrollment"
+          title="Course registration"
+          description="Build your timetable — required subjects auto-approve; electives need admin approval"
         />
 
         <div className="grid gap-4 md:grid-cols-3">
-          <StatCard label="Available sections" value={sections?.sections.length ?? 0} isLoading={isLoading} />
+          <StatCard label="Available sections" value={sections.length} isLoading={isLoading} />
           <StatCard label="Approved" value={approvedCount} />
-          <StatCard label="Pending" value={pendingCount} />
+          <StatCard label="Pending electives" value={pendingCount} />
         </div>
 
-        <Input
-          placeholder="Search by code, title, or section…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
+        {availableData?.term && (
+          <p className="text-sm text-muted-foreground">Term: {availableData.term.name}</p>
+        )}
 
         {isLoading ? (
           <p className="text-sm text-muted-foreground">Loading sections…</p>
-        ) : filtered.length === 0 ? (
-          <EmptyState
-            id={ids.student.enrollment.empty}
-            title="No sections match your search"
-            description="Try a different keyword or check back later."
-          />
         ) : (
-          <div id={ids.student.enrollment.list} className="space-y-4">
-            {filtered.map((section) => {
-              const enrollment = enrollments?.enrollments.find((e) => e.sectionId === section.id);
-              const fillPct = section.capacity
-                ? Math.round((section.enrolledCount / section.capacity) * 100)
-                : 0;
-              return (
-                <Card key={section.id} id={ids.student.enrollment.sectionCard(section.id)}>
-                  <CardHeader className="flex flex-row items-start justify-between gap-4">
-                    <div>
-                      <CardTitle>
-                        {section.subject?.code} — Section {section.sectionCode}
-                      </CardTitle>
-                      <p className="text-sm text-muted-foreground">{section.subject?.title}</p>
-                    </div>
-                    {enrollment ? (
-                      <Badge variant="secondary">{enrollment.status}</Badge>
-                    ) : (
-                      <Button
-                        id={ids.student.enrollment.enrollButton(section.id)}
-                        size="sm"
-                        disabled={section.enrolledCount >= section.capacity || enrollMutation.isPending}
-                        onClick={() => enrollMutation.mutate(section.id)}
-                      >
-                        Enroll
-                      </Button>
-                    )}
-                  </CardHeader>
-                  <CardContent className="space-y-2 text-sm text-muted-foreground">
-                    <p>
-                      {section.schedule ?? 'No schedule'} · {section.room ?? 'No room'}
-                    </p>
-                    <div className="flex items-center gap-2">
-                      <div className="h-2 flex-1 rounded-full bg-muted">
-                        <div className="h-2 rounded-full bg-primary" style={{ width: `${fillPct}%` }} />
-                      </div>
-                      <span className="text-xs">
-                        {section.enrolledCount}/{section.capacity} seats
-                      </span>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
+          <>
+            <InteractiveTimetable
+              available={sections}
+              selectedIds={selectedIds}
+              onSelectedChange={setSelectedIds}
+              conflicts={conflicts}
+            />
+            {conflicts.length > 0 && (
+              <p className="text-sm text-destructive">Time conflict detected — adjust your selection.</p>
+            )}
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                disabled={!termId || saveDraftMutation.isPending}
+                onClick={() => saveDraftMutation.mutate()}
+              >
+                Save draft
+              </Button>
+              <Button
+                disabled={!termId || !!conflicts.length || submitMutation.isPending || !selectedIds.length}
+                onClick={() => submitMutation.mutate()}
+              >
+                Submit schedule
+              </Button>
+            </div>
+          </>
+        )}
+
+        {(enrollments?.enrollments.length ?? 0) > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Your enrollments</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {enrollments?.enrollments.map((e) => (
+                <div key={e.id} className="flex items-center justify-between text-sm">
+                  <span>
+                    {e.section?.subject?.code} — {e.section?.sectionCode}
+                  </span>
+                  <Badge variant="secondary">{e.status}</Badge>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
         )}
       </div>
     </RoleGuard>

@@ -23,6 +23,9 @@ import {
   Clock,
   Megaphone,
   Settings,
+  FileText,
+  LifeBuoy,
+  AlertTriangle,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useState } from 'react';
@@ -45,6 +48,19 @@ interface NavGroup {
 }
 
 const NAV_BY_ROLE: Record<Role, NavGroup[]> = {
+  enrollee: [
+    {
+      section: 'Application',
+      items: [
+        { href: '/enrollee', label: 'Status', icon: LayoutDashboard },
+        { href: '/enrollee/apply', label: 'Apply', icon: FileText },
+      ],
+    },
+    {
+      section: 'Support',
+      items: [{ href: '/help', label: 'Help Desk', icon: LifeBuoy }],
+    },
+  ],
   student: [
     {
       section: 'Overview',
@@ -68,6 +84,7 @@ const NAV_BY_ROLE: Record<Role, NavGroup[]> = {
       items: [
         { href: '/student/ai-lessons', label: 'AI Lessons', icon: Sparkles },
         { href: '/student/news', label: 'News & Alerts', icon: Megaphone },
+        { href: '/help', label: 'Help Desk', icon: LifeBuoy },
       ],
     },
   ],
@@ -87,6 +104,7 @@ const NAV_BY_ROLE: Record<Role, NavGroup[]> = {
         { href: '/faculty/grades', label: 'Grades', icon: GraduationCap },
         { href: '/faculty/attendance', label: 'Attendance', icon: CalendarCheck },
         { href: '/faculty/syllabus', label: 'Syllabus & Lessons', icon: ClipboardList },
+        { href: '/faculty/conduct', label: 'Conduct Reports', icon: AlertTriangle },
       ],
     },
     {
@@ -94,6 +112,7 @@ const NAV_BY_ROLE: Record<Role, NavGroup[]> = {
       items: [
         { href: '/faculty/ai', label: 'AI Tailoring', icon: Sparkles },
         { href: '/faculty/news', label: 'News & Alerts', icon: Megaphone },
+        { href: '/help', label: 'Help Desk', icon: LifeBuoy },
       ],
     },
   ],
@@ -109,7 +128,10 @@ const NAV_BY_ROLE: Record<Role, NavGroup[]> = {
     {
       section: 'Operations',
       items: [
+        { href: '/admin/admissions', label: 'Admissions', icon: FileText },
         { href: '/admin/enrollment', label: 'Enrollment', icon: Users },
+        { href: '/admin/conduct', label: 'Conduct', icon: AlertTriangle },
+        { href: '/admin/support', label: 'Help Desk', icon: LifeBuoy },
         { href: '/admin/calendar', label: 'Calendar', icon: Calendar },
         { href: '/admin/reports', label: 'Reports', icon: FileBarChart },
         { href: '/admin/announcements', label: 'Announcements', icon: Megaphone },
@@ -131,6 +153,7 @@ const ROLE_LABELS: Record<Role, string> = {
   student: 'Student',
   faculty: 'Faculty',
   admin: 'Admin',
+  enrollee: 'Enrollee',
 };
 
 export function DashboardShell({

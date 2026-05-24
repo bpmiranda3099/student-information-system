@@ -4,6 +4,7 @@ import rateLimit from 'express-rate-limit';
 import {
   loginRequestSchema,
   registerRequestSchema,
+  registerEnrolleeSchema,
   COOKIE_NAMES,
 } from '@sis/shared';
 import { prisma } from '../lib/prisma.js';
@@ -16,6 +17,7 @@ import {
 } from '../lib/jwt.js';
 import { serializeUser } from '../lib/serializers.js';
 import { sendWelcomeEmail } from '../lib/resend.js';
+import { isOnboardingComplete } from '../lib/admissions-utils.js';
 import { authenticate, authorize } from '../middleware/auth.js';
 import { validateBody } from '../middleware/validate.js';
 
@@ -51,7 +53,7 @@ router.post('/login', authLimiter, validateBody(loginRequestSchema), async (req,
   }
 });
 
-router.post('/register', authLimiter, validateBody(registerRequestSchema), async (req, res, next) => {
+router.post('/register', authLimiter, authenticate, authorize('admin'), validateBody(registerRequestSchema), async (req, res, next) => {
   try {
     const { email, password, firstName, lastName, role, studentNumber, employeeId, programId } =
       req.body;
@@ -103,6 +105,38 @@ router.post('/register', authLimiter, validateBody(registerRequestSchema), async
   }
 });
 
+router.post('/register-enrollee', authLimiter, validateBody(registerEnrolleeSchema), async (req, res, next) => {
+  try {
+    const { email, password, firstName, lastName } = req.body;
+    const existing = await prisma.user.findUnique({ where: { email } });
+    if (existing) {
+      res.status(409).json({ error: 'Email already registered' });
+      return;
+    }
+
+    const passwordHash = await bcrypt.hash(password, 12);
+    const user = await prisma.$transaction(async (tx) => {
+      const newUser = await tx.user.create({
+        data: { email, passwordHash, firstName, lastName, role: 'enrollee' },
+      });
+      const enrollee = await tx.enrollee.create({ data: { userId: newUser.id } });
+      await tx.admissionApplication.create({ data: { enrolleeId: enrollee.id } });
+      return newUser;
+    });
+
+    void sendWelcomeEmail(user.email, `${user.firstName} ${user.lastName}`).catch(console.error);
+
+    const payload = { userId: user.id, email: user.email, role: user.role };
+    const accessToken = signAccessToken(payload);
+    const refreshToken = signRefreshToken(payload);
+    setAuthCookies(res, accessToken, refreshToken);
+
+    res.status(201).json({ user: serializeUser(user), accessToken });
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.post('/refresh', authLimiter, async (req, res) => {
   try {
     const token = req.cookies?.[COOKIE_NAMES.refreshToken];
@@ -140,7 +174,9 @@ router.get('/me', authenticate, async (req, res, next) => {
       res.status(404).json({ error: 'User not found' });
       return;
     }
-    res.json({ user: serializeUser(user) });
+    const onboardingComplete =
+      user.role === 'student' ? await isOnboardingComplete(user.id) : undefined;
+    res.json({ user: { ...serializeUser(user), onboardingComplete } });
   } catch (err) {
     next(err);
   }

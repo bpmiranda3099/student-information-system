@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import { COOKIE_NAMES, type Role } from '@sis/shared';
 import { verifyAccessToken, type JwtPayload } from '../lib/jwt.js';
+import { isOnboardingComplete } from '../lib/admissions-utils.js';
 
 declare global {
   namespace Express {
@@ -52,4 +53,23 @@ export function optionalAuth(req: Request, _res: Response, next: NextFunction): 
     }
   }
   next();
+}
+
+export function requireOnboardingComplete() {
+  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    if (!req.user) {
+      res.status(401).json({ error: 'Authentication required' });
+      return;
+    }
+    if (req.user.role !== 'student') {
+      next();
+      return;
+    }
+    const complete = await isOnboardingComplete(req.user.userId);
+    if (!complete) {
+      res.status(403).json({ error: 'Onboarding must be completed first' });
+      return;
+    }
+    next();
+  };
 }

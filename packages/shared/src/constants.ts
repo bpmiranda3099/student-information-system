@@ -1,5 +1,57 @@
-export const ROLES = ['student', 'faculty', 'admin'] as const;
+export const ROLES = ['student', 'faculty', 'admin', 'enrollee'] as const;
 export type Role = (typeof ROLES)[number];
+
+export const ADMISSION_TYPES = ['freshman', 'transferee'] as const;
+export type AdmissionType = (typeof ADMISSION_TYPES)[number];
+
+export const ADMISSION_STATUSES = [
+  'draft',
+  'submitted',
+  'under_review',
+  'denied',
+  'accepted',
+  'closed',
+] as const;
+export type AdmissionStatus = (typeof ADMISSION_STATUSES)[number];
+
+export const SUBJECT_REQUIREMENT_TYPES = ['required', 'elective'] as const;
+export type SubjectRequirementType = (typeof SUBJECT_REQUIREMENT_TYPES)[number];
+
+export const ONBOARDING_STEPS = [
+  'mission_vision',
+  'core_values',
+  'policies',
+  'data_privacy',
+  'agreement',
+] as const;
+export type OnboardingStepKey = (typeof ONBOARDING_STEPS)[number];
+
+export const SUPPORT_TICKET_STATUSES = ['open', 'in_progress', 'resolved', 'closed'] as const;
+export type SupportTicketStatus = (typeof SUPPORT_TICKET_STATUSES)[number];
+
+export const CONDUCT_REPORT_STATUSES = ['open', 'under_review', 'resolved', 'dismissed'] as const;
+export type ConductReportStatus = (typeof CONDUCT_REPORT_STATUSES)[number];
+
+export const VIOLATION_TYPES = [
+  'academic_dishonesty',
+  'misconduct',
+  'attendance',
+  'other',
+] as const;
+export type ViolationType = (typeof VIOLATION_TYPES)[number];
+
+export const SUPPORT_CATEGORIES = [
+  'account',
+  'enrollment',
+  'grades',
+  'technical',
+  'other',
+] as const;
+export type SupportCategory = (typeof SUPPORT_CATEGORIES)[number];
+
+export const TERMS_VERSION = '2025.1';
+export const MAX_ADMISSION_RESUBMITS = 3;
+export const ADMISSION_RESUBMIT_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 
 export const ENROLLMENT_STATUSES = ['pending', 'approved', 'dropped'] as const;
 export type EnrollmentStatus = (typeof ENROLLMENT_STATUSES)[number];

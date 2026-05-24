@@ -1,23 +1,27 @@
 'use client';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { authResponseSchema, type User } from '@sis/shared';
+import { authResponseSchema, type AuthMe } from '@sis/shared';
 import { apiClient, ApiError } from '@/lib/api-client';
 import { getAccessToken, setAccessToken } from '@/lib/auth-session';
 import { z } from 'zod';
 
-const meResponseSchema = z.object({ user: authResponseSchema.shape.user });
+const meResponseSchema = z.object({
+  user: authResponseSchema.shape.user.extend({
+    onboardingComplete: z.boolean().optional(),
+  }),
+});
 const loginResponseSchema = authResponseSchema.extend({
   accessToken: z.string(),
 });
 
-async function fetchCurrentUser(): Promise<{ user: User } | null> {
+async function fetchCurrentUser(): Promise<{ user: AuthMe } | null> {
   if (!getAccessToken()) {
     return null;
   }
 
   try {
-    return await apiClient<{ user: User }>('/auth/me', { schema: meResponseSchema });
+    return await apiClient<{ user: AuthMe }>('/auth/me', { schema: meResponseSchema });
   } catch (err) {
     if (err instanceof ApiError && err.status === 401) {
       setAccessToken(null);

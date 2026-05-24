@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { DashboardShell } from '@/components/dashboard-shell';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -11,11 +11,14 @@ import type { Role } from '@sis/shared';
 export function RoleGuard({
   role,
   children,
+  skipOnboardingCheck,
 }: {
   role: Role;
   children: React.ReactNode;
+  skipOnboardingCheck?: boolean;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const { user, isLoading, isAuthenticated } = useAuth();
 
   useEffect(() => {
@@ -26,13 +29,35 @@ export function RoleGuard({
     }
     if (user?.role !== role) {
       router.replace('/dashboard');
+      return;
     }
-  }, [isLoading, isAuthenticated, user, role, router]);
+    if (
+      role === 'student' &&
+      !skipOnboardingCheck &&
+      user.onboardingComplete === false &&
+      pathname !== '/student/onboarding'
+    ) {
+      router.replace('/student/onboarding');
+    }
+  }, [isLoading, isAuthenticated, user, role, router, skipOnboardingCheck, pathname]);
 
   if (isLoading || !user || user.role !== role) {
     return (
       <div id={ids.roleGuard.loading} className="flex min-h-screen items-center justify-center">
         <Skeleton id={`${ids.roleGuard.loading}-skeleton`} className="h-8 w-48" />
+      </div>
+    );
+  }
+
+  if (
+    role === 'student' &&
+    !skipOnboardingCheck &&
+    user.onboardingComplete === false &&
+    pathname !== '/student/onboarding'
+  ) {
+    return (
+      <div id={ids.roleGuard.loading} className="flex min-h-screen items-center justify-center">
+        <Skeleton className="h-8 w-48" />
       </div>
     );
   }

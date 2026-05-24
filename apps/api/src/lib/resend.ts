@@ -5,6 +5,11 @@ import { renderEnrollmentEmail } from '../emails/enrollment.js';
 import { renderGradePostedEmail } from '../emails/grade-posted.js';
 import { renderAiLessonEmail } from '../emails/ai-lesson.js';
 import { renderHealthAlertEmail } from '../emails/health-alert.js';
+import {
+  renderAdmissionSubmittedEmail,
+  renderAdmissionApprovedEmail,
+  renderAdmissionDeniedEmail,
+} from '../emails/admission.js';
 import type { SendEmailRequest } from '@sis/shared';
 
 let resend: Resend | null = null;
@@ -158,6 +163,34 @@ export async function sendHealthAlertEmail(
   checks: Record<string, { status: string }>,
 ): Promise<void> {
   await sendTransactionalEmail(to, 'SIS Health Alert', renderHealthAlertEmail(checks));
+}
+
+export async function sendAdmissionSubmittedEmail(to: string, name: string): Promise<void> {
+  await sendTransactionalEmail(
+    to,
+    'Admission Application Submitted',
+    renderAdmissionSubmittedEmail(name),
+  );
+}
+
+export async function sendAdmissionApprovedEmail(to: string, name: string): Promise<void> {
+  await sendTransactionalEmail(
+    to,
+    'Admission Approved',
+    renderAdmissionApprovedEmail(name),
+  );
+}
+
+export async function sendAdmissionDeniedEmail(
+  to: string,
+  name: string,
+  reason: string,
+): Promise<void> {
+  await sendTransactionalEmail(
+    to,
+    'Admission Application Update',
+    renderAdmissionDeniedEmail(name, reason),
+  );
 }
 
 export async function checkResendHealth(): Promise<{ status: string }> {

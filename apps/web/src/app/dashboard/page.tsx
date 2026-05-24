@@ -20,6 +20,7 @@ export default function DashboardRedirectPage() {
       student: '/student',
       faculty: '/faculty',
       admin: '/admin',
+      enrollee: '/enrollee',
     } as const;
     router.replace(roleRoutes[user!.role]);
   }, [isLoading, isAuthenticated, user, router]);

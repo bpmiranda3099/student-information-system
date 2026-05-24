@@ -54,6 +54,8 @@ export function serializeAnnouncement(a: {
   expiresAt: Date | null;
   source: string;
   externalAlertId: string | null;
+  sectionId?: string | null;
+  section?: { sectionCode: string } | null;
   createdAt: Date;
 }) {
   return {
@@ -66,6 +68,8 @@ export function serializeAnnouncement(a: {
     expiresAt: a.expiresAt?.toISOString() ?? null,
     source: a.source,
     externalAlertId: a.externalAlertId,
+    sectionId: a.sectionId ?? null,
+    sectionCode: a.section?.sectionCode ?? null,
     createdAt: a.createdAt.toISOString(),
   };
 }

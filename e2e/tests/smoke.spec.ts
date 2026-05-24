@@ -14,6 +14,16 @@ test.describe('Smoke tests', () => {
     await expect(page.locator('#sis-login-password')).toBeVisible();
   });
 
+  test('login page has enrollee registration link', async ({ page }) => {
+    await page.goto('/login');
+    await expect(page.locator('#sis-login-register-link')).toBeVisible();
+  });
+
+  test('register page loads', async ({ page }) => {
+    await page.goto('/register');
+    await expect(page.getByText('Create enrollee account')).toBeVisible();
+  });
+
   test('student can log in and reach dashboard', async ({ page }) => {
     await page.goto('/login');
     await page.locator('#sis-login-email').fill('student@sis.edu');
@@ -58,6 +68,8 @@ test.describe('Smoke tests', () => {
     await expect(page.locator('#sis-nav-admin-maintenance')).toHaveText('Maintenance');
     await expect(page.locator('#sis-nav-admin-calendar')).toHaveText('Calendar');
     await expect(page.locator('#sis-nav-admin-announcements')).toHaveText('Announcements');
+    await expect(page.locator('#sis-nav-admin-admissions')).toHaveText('Admissions');
+    await expect(page.locator('#sis-nav-admin-support')).toHaveText('Help Desk');
   });
 });
 

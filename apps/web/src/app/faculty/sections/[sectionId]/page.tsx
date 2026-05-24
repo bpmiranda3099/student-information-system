@@ -2,12 +2,16 @@
 
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { RoleGuard } from '@/components/role-guard';
 import { PageHeader } from '@/components/page-header';
 import { StatCard } from '@/components/stat-card';
 import { DataTable } from '@/components/data-table';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { apiClient } from '@/lib/api-client';
 import { ids } from '@/lib/element-ids';
@@ -24,6 +28,8 @@ type SectionStudent = {
 export default function FacultySectionDetailPage() {
   const params = useParams<{ sectionId: string }>();
   const sectionId = params.sectionId;
+  const queryClient = useQueryClient();
+  const [announceForm, setAnnounceForm] = useState({ title: '', body: '' });
 
   const { data: sectionData, isLoading: sectionLoading } = useQuery({
     queryKey: ['sections', sectionId],
@@ -39,6 +45,25 @@ export default function FacultySectionDetailPage() {
 
   const section = sectionData?.section;
   const students = studentsData?.students ?? [];
+
+  const announceMutation = useMutation({
+    mutationFn: () =>
+      apiClient('/announcements', {
+        method: 'POST',
+        body: {
+          title: announceForm.title,
+          body: announceForm.body,
+          category: 'news',
+          sectionId,
+        },
+      }),
+    onSuccess: () => {
+      setAnnounceForm({ title: '', body: '' });
+      queryClient.invalidateQueries({ queryKey: ['announcements'] });
+      toast.success('Announcement posted');
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
 
   return (
     <RoleGuard role="faculty">
@@ -84,6 +109,36 @@ export default function FacultySectionDetailPage() {
             </Button>
             <Button variant="outline" size="sm" asChild>
               <Link href={`/faculty/ai?section=${sectionId}`}>AI Tailoring</Link>
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Section announcement</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="space-y-2">
+              <Label>Title</Label>
+              <Input
+                value={announceForm.title}
+                onChange={(e) => setAnnounceForm({ ...announceForm, title: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Message</Label>
+              <textarea
+                className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                value={announceForm.body}
+                onChange={(e) => setAnnounceForm({ ...announceForm, body: e.target.value })}
+              />
+            </div>
+            <Button
+              size="sm"
+              disabled={!announceForm.title || !announceForm.body || announceMutation.isPending}
+              onClick={() => announceMutation.mutate()}
+            >
+              Post to section
             </Button>
           </CardContent>
         </Card>

@@ -67,6 +67,13 @@ export default function LoginPage() {
             Demo: student@sis.edu / faculty@sis.edu / admin@sis.edu — Password123!
           </p>
           <Link
+            id={ids.login.registerLink}
+            href="/register"
+            className="mt-4 block text-xs text-muted-foreground hover:underline"
+          >
+            Create enrollee account
+          </Link>
+          <Link
             id={ids.login.backLink}
             href="/"
             className="mt-2 block text-xs text-muted-foreground hover:underline"

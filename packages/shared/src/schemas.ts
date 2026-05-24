@@ -12,6 +12,14 @@ import {
   ANNOUNCEMENT_SEVERITIES,
   ANNOUNCEMENT_SOURCES,
   EXTERNAL_ALERT_PROVIDERS,
+  ADMISSION_TYPES,
+  ADMISSION_STATUSES,
+  SUBJECT_REQUIREMENT_TYPES,
+  ONBOARDING_STEPS,
+  SUPPORT_TICKET_STATUSES,
+  CONDUCT_REPORT_STATUSES,
+  VIOLATION_TYPES,
+  SUPPORT_CATEGORIES,
 } from './constants.js';
 
 export const roleSchema = z.enum(ROLES);
@@ -26,6 +34,14 @@ export const announcementCategorySchema = z.enum(ANNOUNCEMENT_CATEGORIES);
 export const announcementSeveritySchema = z.enum(ANNOUNCEMENT_SEVERITIES);
 export const announcementSourceSchema = z.enum(ANNOUNCEMENT_SOURCES);
 export const externalAlertProviderSchema = z.enum(EXTERNAL_ALERT_PROVIDERS);
+export const admissionTypeSchema = z.enum(ADMISSION_TYPES);
+export const admissionStatusSchema = z.enum(ADMISSION_STATUSES);
+export const subjectRequirementTypeSchema = z.enum(SUBJECT_REQUIREMENT_TYPES);
+export const onboardingStepKeySchema = z.enum(ONBOARDING_STEPS);
+export const supportTicketStatusSchema = z.enum(SUPPORT_TICKET_STATUSES);
+export const conductReportStatusSchema = z.enum(CONDUCT_REPORT_STATUSES);
+export const violationTypeSchema = z.enum(VIOLATION_TYPES);
+export const supportCategorySchema = z.enum(SUPPORT_CATEGORIES);
 
 export const loginRequestSchema = z.object({
   email: z.string().email(),
@@ -56,8 +72,172 @@ export const userSchema = z.object({
   createdAt: z.string().datetime(),
 });
 
+export const registerEnrolleeSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(8),
+  firstName: z.string().min(1),
+  lastName: z.string().min(1),
+});
+
+export const updateAdmissionProfileSchema = z.object({
+  firstName: z.string().min(1).optional(),
+  lastName: z.string().min(1).optional(),
+  bio: z.string().max(2000).optional(),
+  phone: z.string().max(30).optional(),
+  programId: z.string().uuid().optional(),
+  yearLevel: z.number().int().min(1).max(6).optional(),
+  admissionType: admissionTypeSchema.optional(),
+  address: z.string().max(500).optional(),
+  birthDate: z.string().optional(),
+  guardianName: z.string().max(200).optional(),
+  guardianPhone: z.string().max(30).optional(),
+});
+
+export const acceptTermsSchema = z.object({
+  termsVersion: z.string().min(1),
+});
+
+export const denyAdmissionSchema = z.object({
+  reason: z.string().min(1).max(2000),
+});
+
+export const admissionApplicationSchema = z.object({
+  id: z.string().uuid(),
+  status: admissionStatusSchema,
+  termsVersion: z.string().nullable(),
+  termsAcceptedAt: z.string().datetime().nullable(),
+  resubmitCount: z.number().int(),
+  denialReason: z.string().nullable(),
+  reviewedAt: z.string().datetime().nullable(),
+  submittedAt: z.string().datetime().nullable(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+});
+
+export const enrolleeProfileSchema = z.object({
+  id: z.string().uuid(),
+  email: z.string().email(),
+  firstName: z.string(),
+  lastName: z.string(),
+  bio: z.string().nullable(),
+  phone: z.string().nullable(),
+  programId: z.string().uuid().nullable(),
+  programCode: z.string().nullable().optional(),
+  programName: z.string().nullable().optional(),
+  yearLevel: z.number(),
+  admissionType: admissionTypeSchema,
+  address: z.string().nullable(),
+  birthDate: z.string().nullable(),
+  guardianName: z.string().nullable(),
+  guardianPhone: z.string().nullable(),
+  application: admissionApplicationSchema,
+  canEdit: z.boolean(),
+  canResubmit: z.boolean(),
+  resubmitCooldownEndsAt: z.string().datetime().nullable().optional(),
+});
+
+export const programCurriculumSchema = z.object({
+  id: z.string().uuid(),
+  programId: z.string().uuid(),
+  subjectId: z.string().uuid(),
+  yearLevel: z.number().int(),
+  requirementType: subjectRequirementTypeSchema,
+  subjectCode: z.string().optional(),
+  subjectTitle: z.string().optional(),
+});
+
+export const upsertProgramCurriculumSchema = z.object({
+  programId: z.string().uuid(),
+  subjectId: z.string().uuid(),
+  yearLevel: z.number().int().min(1).max(6),
+  requirementType: subjectRequirementTypeSchema,
+});
+
+export const scheduleDraftSchema = z.object({
+  termId: z.string().uuid(),
+  sectionIds: z.array(z.string().uuid()),
+});
+
+export const onboardingProgressSchema = z.object({
+  steps: z.array(
+    z.object({
+      key: onboardingStepKeySchema,
+      completed: z.boolean(),
+      completedAt: z.string().datetime().nullable(),
+    }),
+  ),
+  content: z.array(
+    z.object({
+      key: onboardingStepKeySchema,
+      title: z.string(),
+      body: z.string(),
+    }),
+  ),
+  complete: z.boolean(),
+});
+
+export const completeOnboardingStepSchema = z.object({
+  signedName: z.string().min(1).optional(),
+});
+
+export const createSupportTicketSchema = z.object({
+  subject: z.string().min(1).max(200),
+  body: z.string().min(1).max(5000),
+  category: supportCategorySchema,
+});
+
+export const updateSupportTicketSchema = z.object({
+  status: supportTicketStatusSchema.optional(),
+  assignedToId: z.string().uuid().nullable().optional(),
+  resolution: z.string().max(5000).optional(),
+});
+
+export const supportTicketSchema = z.object({
+  id: z.string().uuid(),
+  subject: z.string(),
+  body: z.string(),
+  category: z.string(),
+  status: supportTicketStatusSchema,
+  resolution: z.string().nullable(),
+  reopenedOnce: z.boolean(),
+  resolvedAt: z.string().datetime().nullable(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+  createdByName: z.string().optional(),
+  assignedToName: z.string().nullable().optional(),
+});
+
+export const createConductReportSchema = z.object({
+  studentId: z.string().uuid(),
+  violationType: violationTypeSchema,
+  description: z.string().min(1).max(5000),
+});
+
+export const updateConductReportSchema = z.object({
+  status: conductReportStatusSchema.optional(),
+  resolutionNotes: z.string().max(5000).optional(),
+});
+
+export const conductReportSchema = z.object({
+  id: z.string().uuid(),
+  studentId: z.string().uuid(),
+  studentName: z.string().optional(),
+  reporterId: z.string().uuid(),
+  reporterName: z.string().optional(),
+  violationType: z.string(),
+  description: z.string(),
+  status: conductReportStatusSchema,
+  resolutionNotes: z.string().nullable(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+});
+
+export const authMeSchema = userSchema.extend({
+  onboardingComplete: z.boolean().optional(),
+});
+
 export const authResponseSchema = z.object({
-  user: userSchema,
+  user: authMeSchema,
   accessToken: z.string().optional(),
 });
 
@@ -390,6 +570,13 @@ export const scheduleEntrySchema = z.object({
   meetings: z.array(sectionMeetingSchema),
 });
 
+export const availableSectionSchema = courseSectionSchema.extend({
+  requirementType: subjectRequirementTypeSchema.nullable(),
+  seatsLeft: z.number().int(),
+  meetings: z.array(sectionMeetingSchema),
+  facultyName: z.string().optional(),
+});
+
 export const academicCalendarEventSchema = z.object({
   id: z.string().uuid(),
   termId: z.string().uuid().nullable(),
@@ -451,6 +638,8 @@ export const announcementSchema = z.object({
   expiresAt: z.string().datetime().nullable(),
   source: announcementSourceSchema,
   externalAlertId: z.string().uuid().nullable(),
+  sectionId: z.string().uuid().nullable().optional(),
+  sectionCode: z.string().nullable().optional(),
   createdAt: z.string().datetime(),
 });
 
@@ -461,6 +650,7 @@ export const createAnnouncementSchema = z.object({
   severity: announcementSeveritySchema.optional(),
   publishedAt: z.string().datetime().optional(),
   expiresAt: z.string().datetime().optional(),
+  sectionId: z.string().uuid().optional(),
 });
 
 export const updateAnnouncementSchema = createAnnouncementSchema.partial();
@@ -549,3 +739,11 @@ export type AcademicCalendarEvent = z.infer<typeof academicCalendarEventSchema>;
 export type Profile = z.infer<typeof profileSchema>;
 export type Announcement = z.infer<typeof announcementSchema>;
 export type ExternalAlert = z.infer<typeof externalAlertSchema>;
+export type EnrolleeProfile = z.infer<typeof enrolleeProfileSchema>;
+export type AdmissionApplication = z.infer<typeof admissionApplicationSchema>;
+export type ProgramCurriculum = z.infer<typeof programCurriculumSchema>;
+export type AvailableSection = z.infer<typeof availableSectionSchema>;
+export type OnboardingProgress = z.infer<typeof onboardingProgressSchema>;
+export type SupportTicket = z.infer<typeof supportTicketSchema>;
+export type ConductReport = z.infer<typeof conductReportSchema>;
+export type AuthMe = z.infer<typeof authMeSchema>;

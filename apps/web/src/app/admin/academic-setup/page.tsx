@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { apiClient } from '@/lib/api-client';
 import { ids } from '@/lib/element-ids';
-import type { AcademicTerm, CourseSection, Subject } from '@sis/shared';
+import type { AcademicTerm, CourseSection, Subject, Program, ProgramCurriculum } from '@sis/shared';
 
 type FacultyOption = { id: string; name: string; email: string };
 type MeetingDraft = { dayOfWeek: number; startTime: string; endTime: string; room: string };
@@ -39,6 +39,43 @@ export default function AdminAcademicSetupPage() {
   const [sectionCapacity, setSectionCapacity] = useState(30);
   const [sectionSchedule, setSectionSchedule] = useState('');
   const [sectionRoom, setSectionRoom] = useState('');
+
+  const [curriculumProgramId, setCurriculumProgramId] = useState('');
+  const [curriculumSubjectId, setCurriculumSubjectId] = useState('');
+  const [curriculumYear, setCurriculumYear] = useState(1);
+  const [curriculumType, setCurriculumType] = useState<'required' | 'elective'>('required');
+
+  const { data: programs } = useQuery({
+    queryKey: ['programs'],
+    queryFn: () => apiClient<{ programs: Program[] }>('/programs'),
+  });
+
+  const { data: curriculum } = useQuery({
+    queryKey: ['curriculum', curriculumProgramId, curriculumYear],
+    queryFn: () =>
+      apiClient<{ curriculum: ProgramCurriculum[] }>(
+        `/admin/curriculum?programId=${curriculumProgramId}&yearLevel=${curriculumYear}`,
+      ),
+    enabled: !!curriculumProgramId,
+  });
+
+  const saveCurriculum = useMutation({
+    mutationFn: () =>
+      apiClient('/admin/curriculum', {
+        method: 'POST',
+        body: {
+          programId: curriculumProgramId,
+          subjectId: curriculumSubjectId,
+          yearLevel: curriculumYear,
+          requirementType: curriculumType,
+        },
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['curriculum'] });
+      toast.success('Curriculum updated');
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
 
   const { data: terms } = useQuery({
     queryKey: ['terms'],
@@ -445,6 +482,82 @@ export default function AdminAcademicSetupPage() {
                   </Button>
                 </div>
               </>
+            ) : null}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Program curriculum</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Program</Label>
+                <select
+                  className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  value={curriculumProgramId}
+                  onChange={(e) => setCurriculumProgramId(e.target.value)}
+                >
+                  <option value="">Select program</option>
+                  {(programs?.programs ?? []).map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.code} — {p.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <Label>Year level</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={6}
+                  value={curriculumYear}
+                  onChange={(e) => setCurriculumYear(Number(e.target.value))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Subject</Label>
+                <select
+                  className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  value={curriculumSubjectId}
+                  onChange={(e) => setCurriculumSubjectId(e.target.value)}
+                >
+                  <option value="">Select subject</option>
+                  {(subjects?.subjects ?? []).map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.code} — {s.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <Label>Requirement</Label>
+                <select
+                  className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  value={curriculumType}
+                  onChange={(e) => setCurriculumType(e.target.value as 'required' | 'elective')}
+                >
+                  <option value="required">Required</option>
+                  <option value="elective">Elective</option>
+                </select>
+              </div>
+            </div>
+            <Button
+              onClick={() => saveCurriculum.mutate()}
+              disabled={!curriculumProgramId || !curriculumSubjectId || saveCurriculum.isPending}
+            >
+              Save curriculum entry
+            </Button>
+            {curriculum?.curriculum.length ? (
+              <ul className="space-y-1 text-sm">
+                {curriculum.curriculum.map((c) => (
+                  <li key={c.id}>
+                    {c.subjectCode} — {c.requirementType}
+                  </li>
+                ))}
+              </ul>
             ) : null}
           </CardContent>
         </Card>

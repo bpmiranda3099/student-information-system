@@ -1,5 +1,5 @@
 import { Router, type Router as RouterType } from 'express';
-import { createProgramSchema, createSubjectSchema, createTermSchema, createSectionSchema, upsertSectionMeetingsSchema } from '@sis/shared';
+import { createProgramSchema, createSubjectSchema, createTermSchema, createSectionSchema, upsertSectionMeetingsSchema, upsertProgramCurriculumSchema } from '@sis/shared';
 import { prisma } from '../lib/prisma.js';
 import { routeParam } from '../lib/params.js';
 import {
@@ -287,6 +287,79 @@ router.get('/faculty/me/schedule', authenticate, authorize('faculty'), async (re
     }
     const schedule = await buildScheduleEntries({ facultyId: faculty.id });
     res.json({ schedule });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/admin/curriculum', authenticate, authorize('admin'), async (req, res, next) => {
+  try {
+    const programId = req.query.programId ? String(req.query.programId) : undefined;
+    const yearLevel = req.query.yearLevel ? Number(req.query.yearLevel) : undefined;
+    const rows = await prisma.programCurriculum.findMany({
+      where: {
+        ...(programId ? { programId } : {}),
+        ...(yearLevel ? { yearLevel } : {}),
+      },
+      include: { subject: true },
+      orderBy: [{ yearLevel: 'asc' }, { subject: { code: 'asc' } }],
+    });
+    res.json({
+      curriculum: rows.map((r) => ({
+        id: r.id,
+        programId: r.programId,
+        subjectId: r.subjectId,
+        yearLevel: r.yearLevel,
+        requirementType: r.requirementType,
+        subjectCode: r.subject.code,
+        subjectTitle: r.subject.title,
+      })),
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post(
+  '/admin/curriculum',
+  authenticate,
+  authorize('admin'),
+  validateBody(upsertProgramCurriculumSchema),
+  async (req, res, next) => {
+    try {
+      const row = await prisma.programCurriculum.upsert({
+        where: {
+          programId_subjectId_yearLevel: {
+            programId: req.body.programId,
+            subjectId: req.body.subjectId,
+            yearLevel: req.body.yearLevel,
+          },
+        },
+        create: req.body,
+        update: { requirementType: req.body.requirementType },
+        include: { subject: true },
+      });
+      res.status(201).json({
+        curriculum: {
+          id: row.id,
+          programId: row.programId,
+          subjectId: row.subjectId,
+          yearLevel: row.yearLevel,
+          requirementType: row.requirementType,
+          subjectCode: row.subject.code,
+          subjectTitle: row.subject.title,
+        },
+      });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+router.delete('/admin/curriculum/:id', authenticate, authorize('admin'), async (req, res, next) => {
+  try {
+    await prisma.programCurriculum.delete({ where: { id: routeParam(req.params.id) } });
+    res.json({ message: 'Deleted' });
   } catch (err) {
     next(err);
   }

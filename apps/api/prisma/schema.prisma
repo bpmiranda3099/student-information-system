@@ -11,6 +11,40 @@ enum Role {
   student
   faculty
   admin
+  enrollee
+}
+
+enum AdmissionType {
+  freshman
+  transferee
+}
+
+enum AdmissionStatus {
+  draft
+  submitted
+  under_review
+  denied
+  accepted
+  closed
+}
+
+enum SubjectRequirementType {
+  required
+  elective
+}
+
+enum SupportTicketStatus {
+  open
+  in_progress
+  resolved
+  closed
+}
+
+enum ConductReportStatus {
+  open
+  under_review
+  resolved
+  dismissed
 }
 
 enum EnrollmentStatus {
@@ -102,12 +136,18 @@ model User {
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
-  student Student?
-  faculty Faculty?
-  admin   Admin?
+  student  Student?
+  faculty  Faculty?
+  admin    Admin?
+  enrollee Enrollee?
 
   auditLogs            AuditLog[]
   announcementsCreated Announcement[] @relation("AnnouncementCreator")
+  onboardingSteps      OnboardingStep[]
+  supportTicketsCreated SupportTicket[] @relation("TicketCreator")
+  supportTicketsAssigned SupportTicket[] @relation("TicketAssignee")
+  conductReportsFiled  ConductReport[] @relation("ConductReporter")
+  admissionReviews     AdmissionApplication[] @relation("AdmissionReviewer")
 
   @@map("users")
 }
@@ -127,6 +167,8 @@ model Student {
   gradeEntries     GradeEntry[]
   attendanceRecords AttendanceRecord[]
   aiLessonRequests AiLessonRequest[]
+  scheduleDrafts   ScheduleDraft[]
+  conductReports   ConductReport[]
 
   @@map("students")
 }
@@ -163,7 +205,9 @@ model Program {
   description String?
   createdAt   DateTime @default(now()) @map("created_at")
 
-  students Student[]
+  students    Student[]
+  enrollees   Enrollee[]
+  curriculum  ProgramCurriculum[]
 
   @@map("programs")
 }
@@ -177,6 +221,7 @@ model Subject {
   createdAt   DateTime @default(now()) @map("created_at")
 
   courseSections CourseSection[]
+  curriculum     ProgramCurriculum[]
 
   @@map("subjects")
 }
@@ -217,6 +262,7 @@ model CourseSection {
   attendanceSessions AttendanceSession[]
   syllabus           Syllabus?
   meetings           SectionMeeting[]
+  announcements      Announcement[]
 
   @@unique([subjectId, termId, sectionCode])
   @@map("course_sections")
@@ -448,6 +494,123 @@ model ExternalAlert {
   @@map("external_alerts")
 }
 
+model Enrollee {
+  id            String        @id @default(uuid())
+  userId        String        @unique @map("user_id")
+  programId     String?       @map("program_id")
+  yearLevel     Int           @default(1) @map("year_level")
+  admissionType AdmissionType @default(freshman) @map("admission_type")
+  address       String?
+  birthDate     DateTime?     @map("birth_date") @db.Date
+  guardianName  String?       @map("guardian_name")
+  guardianPhone String?       @map("guardian_phone")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  user        User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  program     Program?              @relation(fields: [programId], references: [id])
+  application AdmissionApplication?
+
+  @@map("enrollees")
+}
+
+model AdmissionApplication {
+  id              String          @id @default(uuid())
+  enrolleeId      String          @unique @map("enrollee_id")
+  status          AdmissionStatus @default(draft)
+  termsVersion    String?         @map("terms_version")
+  termsAcceptedAt DateTime?       @map("terms_accepted_at")
+  resubmitCount   Int             @default(0) @map("resubmit_count")
+  denialReason    String?         @map("denial_reason")
+  reviewedById    String?         @map("reviewed_by_id")
+  reviewedAt      DateTime?       @map("reviewed_at")
+  submittedAt     DateTime?       @map("submitted_at")
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+
+  enrollee   Enrollee @relation(fields: [enrolleeId], references: [id], onDelete: Cascade)
+  reviewedBy User?    @relation("AdmissionReviewer", fields: [reviewedById], references: [id])
+
+  @@map("admission_applications")
+}
+
+model ProgramCurriculum {
+  id              String                 @id @default(uuid())
+  programId       String                 @map("program_id")
+  subjectId       String                 @map("subject_id")
+  yearLevel       Int                    @map("year_level")
+  requirementType SubjectRequirementType @map("requirement_type")
+  createdAt       DateTime               @default(now()) @map("created_at")
+
+  program Program @relation(fields: [programId], references: [id], onDelete: Cascade)
+  subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@unique([programId, subjectId, yearLevel])
+  @@map("program_curriculum")
+}
+
+model OnboardingStep {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  stepKey     String   @map("step_key")
+  completedAt DateTime @default(now()) @map("completed_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, stepKey])
+  @@map("onboarding_steps")
+}
+
+model ScheduleDraft {
+  id         String   @id @default(uuid())
+  studentId  String   @map("student_id")
+  termId     String   @map("term_id")
+  sectionIds Json     @default("[]") @map("section_ids")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, termId])
+  @@map("schedule_drafts")
+}
+
+model SupportTicket {
+  id           String               @id @default(uuid())
+  createdById  String               @map("created_by_id")
+  assignedToId String?              @map("assigned_to_id")
+  subject      String
+  body         String
+  category     String
+  status       SupportTicketStatus  @default(open)
+  resolution   String?
+  reopenedOnce Boolean              @default(false) @map("reopened_once")
+  resolvedAt   DateTime?            @map("resolved_at")
+  createdAt    DateTime             @default(now()) @map("created_at")
+  updatedAt    DateTime             @updatedAt @map("updated_at")
+
+  createdBy  User  @relation("TicketCreator", fields: [createdById], references: [id])
+  assignedTo User? @relation("TicketAssignee", fields: [assignedToId], references: [id])
+
+  @@map("support_tickets")
+}
+
+model ConductReport {
+  id              String              @id @default(uuid())
+  studentId       String              @map("student_id")
+  reporterId      String              @map("reporter_id")
+  violationType   String              @map("violation_type")
+  description     String
+  status          ConductReportStatus @default(open)
+  resolutionNotes String?             @map("resolution_notes")
+  createdAt       DateTime            @default(now()) @map("created_at")
+  updatedAt       DateTime            @updatedAt @map("updated_at")
+
+  student  Student @relation(fields: [studentId], references: [id])
+  reporter User    @relation("ConductReporter", fields: [reporterId], references: [id])
+
+  @@map("conduct_reports")
+}
+
 model Announcement {
   id              String               @id @default(uuid())
   title           String
@@ -458,10 +621,12 @@ model Announcement {
   expiresAt       DateTime?            @map("expires_at")
   source          AnnouncementSource   @default(manual)
   externalAlertId String?              @unique @map("external_alert_id")
+  sectionId       String?              @map("section_id")
   createdById     String?              @map("created_by_id")
   createdAt       DateTime             @default(now()) @map("created_at")
 
   externalAlert ExternalAlert? @relation(fields: [externalAlertId], references: [id])
+  section       CourseSection? @relation(fields: [sectionId], references: [id])
   createdBy     User?          @relation("AnnouncementCreator", fields: [createdById], references: [id])
 
   @@map("announcements")

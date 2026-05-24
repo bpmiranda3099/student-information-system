@@ -15,6 +15,11 @@ import healthRoutes from './routes/health.js';
 import profileRoutes from './routes/profiles.js';
 import calendarRoutes from './routes/calendar.js';
 import announcementRoutes from './routes/announcements.js';
+import admissionsRoutes from './routes/admissions.js';
+import onboardingRoutes from './routes/onboarding.js';
+import supportRoutes from './routes/support.js';
+import conductRoutes from './routes/conduct.js';
+import registrationRoutes from './routes/registration.js';
 import { errorHandler, notFoundHandler } from './middleware/error.js';
 
 const app: Express = express();
@@ -64,6 +69,11 @@ app.use('/admin/emails', emailRoutes);
 app.use('/', profileRoutes);
 app.use('/', calendarRoutes);
 app.use('/', announcementRoutes);
+app.use('/', admissionsRoutes);
+app.use('/onboarding', onboardingRoutes);
+app.use('/support', supportRoutes);
+app.use('/conduct', conductRoutes);
+app.use('/', registrationRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

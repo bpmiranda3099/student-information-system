@@ -24,7 +24,7 @@ export const ids = {
     signInLink: 'sis-home-sign-in-link',
     getStartedLink: 'sis-home-get-started-link',
   },
-  login: {
+    login: {
     page: 'sis-login-page',
     card: 'sis-login-card',
     title: 'sis-login-title',
@@ -33,6 +33,7 @@ export const ids = {
     password: 'sis-login-password',
     submit: 'sis-login-submit',
     demoHint: 'sis-login-demo-hint',
+    registerLink: 'sis-login-register-link',
     backLink: 'sis-login-back-link',
   },
   dashboard: {

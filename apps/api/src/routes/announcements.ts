@@ -23,14 +23,40 @@ function activeAnnouncementFilter() {
   };
 }
 
+async function getUserSectionIds(userId: string, role: string): Promise<string[]> {
+  if (role === 'faculty') {
+    const faculty = await prisma.faculty.findUnique({ where: { userId } });
+    if (!faculty) return [];
+    const sections = await prisma.courseSection.findMany({
+      where: { facultyId: faculty.id },
+      select: { id: true },
+    });
+    return sections.map((s) => s.id);
+  }
+  if (role === 'student') {
+    const student = await prisma.student.findUnique({ where: { userId } });
+    if (!student) return [];
+    const enrollments = await prisma.enrollment.findMany({
+      where: { studentId: student.id, status: 'approved' },
+      select: { sectionId: true },
+    });
+    return enrollments.map((e) => e.sectionId);
+  }
+  return [];
+}
+
 router.get('/announcements', authenticate, async (req, res, next) => {
   try {
     const category = req.query.category ? String(req.query.category) : undefined;
+    const sectionIds = await getUserSectionIds(req.user!.userId, req.user!.role);
+
     const announcements = await prisma.announcement.findMany({
       where: {
         ...activeAnnouncementFilter(),
         ...(category ? { category: category as never } : {}),
+        OR: [{ sectionId: null }, ...(sectionIds.length ? [{ sectionId: { in: sectionIds } }] : [])],
       },
+      include: { section: true },
       orderBy: { publishedAt: 'desc' },
       take: 50,
     });
@@ -40,10 +66,15 @@ router.get('/announcements', authenticate, async (req, res, next) => {
   }
 });
 
-router.get('/announcements/feed', authenticate, async (_req, res, next) => {
+router.get('/announcements/feed', authenticate, async (req, res, next) => {
   try {
+    const sectionIds = await getUserSectionIds(req.user!.userId, req.user!.role);
     const announcements = await prisma.announcement.findMany({
-      where: activeAnnouncementFilter(),
+      where: {
+        ...activeAnnouncementFilter(),
+        OR: [{ sectionId: null }, ...(sectionIds.length ? [{ sectionId: { in: sectionIds } }] : [])],
+      },
+      include: { section: true },
       orderBy: { publishedAt: 'desc' },
       take: 5,
     });
@@ -63,11 +94,32 @@ router.get('/announcements/feed', authenticate, async (_req, res, next) => {
 router.post(
   '/announcements',
   authenticate,
-  authorize('admin'),
   validateBody(createAnnouncementSchema),
   async (req, res, next) => {
     try {
-      const { title, body, category, severity, publishedAt, expiresAt } = req.body;
+      const { title, body, category, severity, publishedAt, expiresAt, sectionId } = req.body;
+      const role = req.user!.role;
+
+      if (role === 'admin') {
+        // global or section-scoped
+      } else if (role === 'faculty') {
+        if (!sectionId) {
+          res.status(403).json({ error: 'Faculty announcements must target a section' });
+          return;
+        }
+        const faculty = await prisma.faculty.findUnique({ where: { userId: req.user!.userId } });
+        const section = await prisma.courseSection.findFirst({
+          where: { id: sectionId, facultyId: faculty?.id },
+        });
+        if (!section) {
+          res.status(403).json({ error: 'You can only announce for your own sections' });
+          return;
+        }
+      } else {
+        res.status(403).json({ error: 'Insufficient permissions' });
+        return;
+      }
+
       const announcement = await prisma.announcement.create({
         data: {
           title,
@@ -77,8 +129,10 @@ router.post(
           publishedAt: publishedAt ? new Date(publishedAt) : new Date(),
           expiresAt: expiresAt ? new Date(expiresAt) : null,
           source: 'manual',
+          sectionId: sectionId ?? null,
           createdById: req.user!.userId,
         },
+        include: { section: true },
       });
       res.status(201).json({ announcement: serializeAnnouncement(announcement) });
     } catch (err) {
@@ -104,6 +158,7 @@ router.patch(
             ? { expiresAt: expiresAt ? new Date(expiresAt) : null }
             : {}),
         },
+        include: { section: true },
       });
       res.json({ announcement: serializeAnnouncement(announcement) });
     } catch (err) {
@@ -188,6 +243,7 @@ router.post(
           externalAlertId: alert.id,
           createdById: req.user!.userId,
         },
+        include: { section: true },
       });
       res.status(201).json({ announcement: serializeAnnouncement(announcement) });
     } catch (err) {

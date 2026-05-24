@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { apiClient, apiUpload } from '@/lib/api-client';
+import { Badge } from '@/components/ui/badge';
 import type { Profile } from '@sis/shared';
 
 export function ProfilePageContent({
@@ -23,6 +24,12 @@ export function ProfilePageContent({
   const { data, isLoading } = useQuery({
     queryKey: ['profile', 'me'],
     queryFn: () => apiClient<{ profile: Profile }>('/profiles/me'),
+  });
+
+  const { data: conductData } = useQuery({
+    queryKey: ['conduct', 'me'],
+    queryFn: () => apiClient<{ summary?: { openCount: number } }>('/conduct/reports'),
+    enabled: data?.profile?.role === 'student',
   });
 
   const [bio, setBio] = useState('');
@@ -65,6 +72,12 @@ export function ProfilePageContent({
   return (
     <div id={pageId} className="space-y-8">
       <PageHeader titleId={titleId} title="Profile" description="Your bio and digital ID card" />
+
+      {conductData?.summary && conductData.summary.openCount > 0 && (
+        <Badge variant="destructive">
+          Conduct status: {conductData.summary.openCount} open report(s)
+        </Badge>
+      )}
 
       {isLoading || !profile ? (
         <p className="text-sm text-muted-foreground">Loading profile…</p>

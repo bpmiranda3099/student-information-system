@@ -1,4 +1,5 @@
 import bcrypt from 'bcryptjs';
+import { ONBOARDING_STEPS } from '@sis/shared';
 import { createPrismaClient } from '../src/lib/create-prisma-client.js';
 
 const prisma = createPrismaClient();
@@ -202,6 +203,32 @@ async function main() {
         title: 'Week 1: Variables and Data Types',
         week: 1,
         topics: ['variables', 'data types', 'operators'],
+      },
+    });
+  }
+
+  if (studentUser) {
+    await prisma.onboardingStep.createMany({
+      data: ONBOARDING_STEPS.map((stepKey) => ({ userId: studentUser.id, stepKey })),
+      skipDuplicates: true,
+    });
+  }
+
+  for (const subject of subjects) {
+    await prisma.programCurriculum.upsert({
+      where: {
+        programId_subjectId_yearLevel: {
+          programId: program.id,
+          subjectId: subject.id,
+          yearLevel: 1,
+        },
+      },
+      update: {},
+      create: {
+        programId: program.id,
+        subjectId: subject.id,
+        yearLevel: 1,
+        requirementType: subject.code === 'CS101' ? 'required' : 'elective',
       },
     });
   }
