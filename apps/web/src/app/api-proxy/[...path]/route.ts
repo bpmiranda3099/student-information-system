@@ -4,6 +4,42 @@ const API_TARGET = (process.env.API_PROXY_TARGET ?? 'http://localhost:4000').rep
 
 export const dynamic = 'force-dynamic';
 
+type CookieOptions = NonNullable<Parameters<NextResponse['cookies']['set']>[2]>;
+
+function applySetCookie(response: NextResponse, header: string): void {
+  const parts = header.split(';').map((part) => part.trim());
+  const nameValue = parts[0];
+  if (!nameValue) return;
+  const eqIdx = nameValue.indexOf('=');
+  if (eqIdx === -1) return;
+
+  const name = nameValue.slice(0, eqIdx);
+  const value = nameValue.slice(eqIdx + 1);
+  const options: CookieOptions = {};
+
+  for (const attr of parts.slice(1)) {
+    const lower = attr.toLowerCase();
+    if (lower === 'httponly') {
+      options.httpOnly = true;
+    } else if (lower === 'secure') {
+      options.secure = true;
+    } else if (lower.startsWith('path=')) {
+      options.path = attr.slice(5);
+    } else if (lower.startsWith('max-age=')) {
+      options.maxAge = Number.parseInt(attr.slice(8), 10);
+    } else if (lower.startsWith('samesite=')) {
+      const sameSite = attr.slice(9).toLowerCase();
+      if (sameSite === 'lax' || sameSite === 'strict' || sameSite === 'none') {
+        options.sameSite = sameSite;
+      }
+    } else if (lower.startsWith('expires=')) {
+      options.expires = new Date(attr.slice(8));
+    }
+  }
+
+  response.cookies.set(name, value, options);
+}
+
 async function proxy(
   request: NextRequest,
   context: { params: Promise<{ path: string[] }> },
@@ -32,17 +68,22 @@ async function proxy(
 
   upstream.headers.forEach((value, key) => {
     const lower = key.toLowerCase();
-    if (lower === 'set-cookie') {
-      responseHeaders.append('set-cookie', value);
-    } else if (!['transfer-encoding', 'connection', 'content-encoding'].includes(lower)) {
+    if (lower !== 'set-cookie' && !['transfer-encoding', 'connection', 'content-encoding'].includes(lower)) {
       responseHeaders.set(key, value);
     }
   });
 
-  return new NextResponse(upstream.body, {
+  const response = new NextResponse(upstream.body, {
     status: upstream.status,
     headers: responseHeaders,
   });
+
+  // Must set each cookie individually — comma-joined Set-Cookie breaks browsers.
+  for (const setCookie of upstream.headers.getSetCookie()) {
+    applySetCookie(response, setCookie);
+  }
+
+  return response;
 }
 
 export const GET = proxy;
