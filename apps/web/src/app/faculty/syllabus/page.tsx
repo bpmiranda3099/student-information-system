@@ -5,19 +5,31 @@ import { useSearchParams } from 'next/navigation';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { RoleGuard } from '@/components/role-guard';
+import { PageHeader } from '@/components/page-header';
+import { DataTable } from '@/components/data-table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { apiClient, apiUpload } from '@/lib/api-client';
 import { ids } from '@/lib/element-ids';
 import type { CourseSection } from '@sis/shared';
+
+type LessonRow = {
+  id: string;
+  title: string;
+  week: number;
+  topics: string[];
+  files: { id: string; fileName: string }[];
+};
 
 function SyllabusContent() {
   const searchParams = useSearchParams();
   const [sectionId, setSectionId] = useState(searchParams.get('section') ?? '');
   const [lessonTitle, setLessonTitle] = useState('');
   const [lessonWeek, setLessonWeek] = useState(1);
+  const [lessonTopics, setLessonTopics] = useState('');
 
   const { data: sections } = useQuery({
     queryKey: ['sections'],
@@ -31,7 +43,7 @@ function SyllabusContent() {
         syllabus: {
           id: string;
           title: string;
-          lessons: { id: string; title: string; week: number; topics: string[] }[];
+          lessons: LessonRow[];
         } | null;
       }>(`/sections/${sectionId}/syllabus`),
     enabled: !!sectionId,
@@ -50,11 +62,19 @@ function SyllabusContent() {
     mutationFn: (syllabusId: string) =>
       apiClient(`/syllabus/${syllabusId}/lessons`, {
         method: 'POST',
-        body: { title: lessonTitle, week: lessonWeek, topics: [] },
+        body: {
+          title: lessonTitle,
+          week: lessonWeek,
+          topics: lessonTopics
+            .split(',')
+            .map((t) => t.trim())
+            .filter(Boolean),
+        },
       }),
     onSuccess: () => {
       refetch();
       setLessonTitle('');
+      setLessonTopics('');
       toast.success('Lesson added');
     },
   });
@@ -103,7 +123,7 @@ function SyllabusContent() {
               <CardTitle>{syllabusData.syllabus.title}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-3">
+              <div className="grid gap-4 md:grid-cols-4">
                 <div className="space-y-2 md:col-span-2">
                   <Label htmlFor={ids.faculty.syllabus.lessonTitle}>New lesson title</Label>
                   <Input
@@ -123,6 +143,15 @@ function SyllabusContent() {
                     onChange={(e) => setLessonWeek(Number(e.target.value))}
                   />
                 </div>
+                <div className="space-y-2">
+                  <Label htmlFor="sis-faculty-syllabus-lesson-topics">Topics</Label>
+                  <Input
+                    id="sis-faculty-syllabus-lesson-topics"
+                    value={lessonTopics}
+                    onChange={(e) => setLessonTopics(e.target.value)}
+                    placeholder="Intro, syllabus review"
+                  />
+                </div>
               </div>
               <Button
                 id={ids.faculty.syllabus.addLesson}
@@ -135,30 +164,52 @@ function SyllabusContent() {
             </CardContent>
           </Card>
 
-          <div id={ids.faculty.syllabus.lessonsList} className="space-y-4">
-            {syllabusData.syllabus.lessons.map((lesson) => (
-              <Card key={lesson.id}>
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <CardTitle className="text-base">
-                    Week {lesson.week}: {lesson.title}
-                  </CardTitle>
-                  <label className="cursor-pointer">
-                    <Button variant="outline" size="sm" asChild>
-                      <span>Upload PDF</span>
-                    </Button>
-                    <input
-                      type="file"
-                      accept="application/pdf"
-                      className="hidden"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) handlePdfUpload(lesson.id, file);
-                      }}
-                    />
-                  </label>
-                </CardHeader>
-              </Card>
-            ))}
+          <div id={ids.faculty.syllabus.lessonsList}>
+            <DataTable
+              rows={syllabusData.syllabus.lessons}
+              rowKey={(lesson) => lesson.id}
+              emptyMessage="No lessons yet."
+              columns={[
+                { key: 'week', header: 'Week', cell: (lesson) => lesson.week },
+                { key: 'title', header: 'Title', cell: (lesson) => lesson.title },
+                {
+                  key: 'topics',
+                  header: 'Topics',
+                  cell: (lesson) =>
+                    lesson.topics.length ? lesson.topics.join(', ') : '—',
+                },
+                {
+                  key: 'upload',
+                  header: 'Upload status',
+                  cell: (lesson) =>
+                    lesson.files.length > 0 ? (
+                      <Badge variant="secondary">{lesson.files.length} file(s)</Badge>
+                    ) : (
+                      <Badge variant="outline">No PDF</Badge>
+                    ),
+                },
+                {
+                  key: 'actions',
+                  header: 'Actions',
+                  cell: (lesson) => (
+                    <label className="cursor-pointer">
+                      <Button variant="outline" size="sm" asChild>
+                        <span>Upload PDF</span>
+                      </Button>
+                      <input
+                        type="file"
+                        accept="application/pdf"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handlePdfUpload(lesson.id, file);
+                        }}
+                      />
+                    </label>
+                  ),
+                },
+              ]}
+            />
           </div>
         </div>
       )}
@@ -169,13 +220,12 @@ function SyllabusContent() {
 export default function FacultySyllabusPage() {
   return (
     <RoleGuard role="faculty">
-      <div id={ids.faculty.syllabus.page}>
-        <div>
-          <h1 id={ids.faculty.syllabus.title} className="text-2xl font-semibold tracking-tight">
-            Syllabus & Lessons
-          </h1>
-          <p className="text-sm text-muted-foreground">Manage syllabus and upload lesson PDFs</p>
-        </div>
+      <div id={ids.faculty.syllabus.page} className="space-y-8">
+        <PageHeader
+          titleId={ids.faculty.syllabus.title}
+          title="Syllabus & Lessons"
+          description="Manage syllabus, topics, and lesson PDF uploads"
+        />
         <Suspense fallback={<p className="text-sm text-muted-foreground">Loading…</p>}>
           <SyllabusContent />
         </Suspense>

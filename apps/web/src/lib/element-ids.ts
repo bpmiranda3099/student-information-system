@@ -40,10 +40,11 @@ export const ids = {
   },
   shell: {
     root: 'sis-shell-root',
+    brand: 'sis-shell-brand',
     mobileHeader: 'sis-shell-mobile-header',
     menuToggle: 'sis-shell-menu-toggle',
     sidebar: 'sis-shell-sidebar',
-    brand: 'sis-shell-brand',
+    roleBadge: 'sis-shell-role-badge',
     nav: 'sis-shell-nav',
     userEmail: 'sis-shell-user-email',
     logout: 'sis-shell-logout',
@@ -61,6 +62,14 @@ export const ids = {
       enrolledSections: 'sis-student-dashboard-enrolled-sections',
       coursesWithGrades: 'sis-student-dashboard-courses-with-grades',
       avgAttendance: 'sis-student-dashboard-avg-attendance',
+      enrollmentsTable: 'sis-student-dashboard-enrollments-table',
+      recentGrades: 'sis-student-dashboard-recent-grades',
+    },
+    courses: {
+      page: 'sis-student-courses-page',
+      title: 'sis-student-courses-title',
+      list: 'sis-student-courses-list',
+      empty: 'sis-student-courses-empty',
     },
     enrollment: {
       page: 'sis-student-enrollment-page',
@@ -101,6 +110,7 @@ export const ids = {
       page: 'sis-faculty-sections-page',
       title: 'sis-faculty-sections-title',
       list: 'sis-faculty-sections-list',
+      detail: (sectionId: string) => `sis-faculty-section-detail-${sectionId}`,
     },
     grades: {
       page: 'sis-faculty-grades-page',

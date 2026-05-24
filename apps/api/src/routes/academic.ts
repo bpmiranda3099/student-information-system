@@ -32,6 +32,26 @@ router.post('/programs', authenticate, authorize('admin'), validateBody(createPr
   }
 });
 
+router.get('/faculty', authenticate, authorize('admin'), async (_req, res, next) => {
+  try {
+    const faculty = await prisma.faculty.findMany({
+      include: { user: true },
+      orderBy: { user: { lastName: 'asc' } },
+    });
+    res.json({
+      faculty: faculty.map((f) => ({
+        id: f.id,
+        employeeId: f.employeeId,
+        department: f.department,
+        name: `${f.user.firstName} ${f.user.lastName}`,
+        email: f.user.email,
+      })),
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // Subjects
 router.get('/subjects', authenticate, async (_req, res, next) => {
   try {
@@ -106,6 +126,33 @@ router.get('/sections/:id', authenticate, async (req, res, next) => {
       return;
     }
     res.json({ section: serializeSection(section) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/sections/:sectionId/students', authenticate, authorize('faculty', 'admin'), async (req, res, next) => {
+  try {
+    const sectionId = routeParam(req.params.sectionId);
+    const enrollments = await prisma.enrollment.findMany({
+      where: { sectionId, status: 'approved' },
+      include: {
+        student: {
+          include: { user: true },
+        },
+      },
+      orderBy: { student: { user: { lastName: 'asc' } } },
+    });
+
+    res.json({
+      students: enrollments.map((e) => ({
+        studentId: e.studentId,
+        studentNumber: e.student.studentNumber,
+        firstName: e.student.user.firstName,
+        lastName: e.student.user.lastName,
+        email: e.student.user.email,
+      })),
+    });
   } catch (err) {
     next(err);
   }

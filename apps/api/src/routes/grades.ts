@@ -56,6 +56,7 @@ async function getSectionGrades(sectionId: string, studentId?: string) {
     return {
       ...computed,
       studentName: `${enrollment.student.user.firstName} ${enrollment.student.user.lastName}`,
+      entries: studentEntries,
     };
   });
 

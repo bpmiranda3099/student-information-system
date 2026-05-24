@@ -1,10 +1,13 @@
 'use client';
 
+import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { RoleGuard } from '@/components/role-guard';
+import { PageHeader } from '@/components/page-header';
+import { StatCard } from '@/components/stat-card';
+import { EmptyState } from '@/components/empty-state';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
 import { apiClient } from '@/lib/api-client';
 import { ids } from '@/lib/element-ids';
 
@@ -19,25 +22,39 @@ export default function StudentGradesPage() {
     queryFn: () => apiClient<{ grades: GradeItem[] }>('/students/me/grades'),
   });
 
+  const gpa = useMemo(() => {
+    if (!data?.grades.length) return null;
+    const sum = data.grades.reduce((acc, g) => acc + g.grade.finalScore, 0);
+    return (sum / data.grades.length).toFixed(1);
+  }, [data]);
+
   return (
     <RoleGuard role="student">
-      <div id={ids.student.grades.page}>
-        <div>
-          <h1 id={ids.student.grades.title} className="text-2xl font-semibold tracking-tight">
-            Grades
-          </h1>
-          <p className="text-sm text-muted-foreground">Your transcript by section</p>
+      <div id={ids.student.grades.page} className="space-y-8">
+        <PageHeader
+          titleId={ids.student.grades.title}
+          title="Grades"
+          description="Your transcript by section"
+        />
+
+        <div className="grid gap-4 md:grid-cols-3">
+          <StatCard label="Courses graded" value={data?.grades.length ?? 0} isLoading={isLoading} />
+          <StatCard label="Average score" value={gpa ?? '—'} isLoading={isLoading} />
+          <StatCard
+            label="Latest letter"
+            value={data?.grades[0]?.grade.letterGrade ?? '—'}
+            isLoading={isLoading}
+          />
         </div>
 
         {isLoading ? (
-          <Skeleton className="h-32 w-full" />
+          <p className="text-sm text-muted-foreground">Loading grades…</p>
         ) : data?.grades.length === 0 ? (
-          <div
+          <EmptyState
             id={ids.student.grades.empty}
-            className="flex flex-col items-center justify-center gap-4 py-16 text-center"
-          >
-            <p className="text-sm text-muted-foreground">No grades posted yet.</p>
-          </div>
+            title="No grades posted yet"
+            description="Grades will appear here once faculty encodes them."
+          />
         ) : (
           <div id={ids.student.grades.list} className="space-y-4">
             {data?.grades.map((item, i) => (
@@ -52,13 +69,16 @@ export default function StudentGradesPage() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex flex-wrap gap-3">
-                    {Object.entries(item.grade.categoryAverages).map(([cat, avg]) => (
-                      <span key={cat} className="text-xs text-muted-foreground">
-                        {cat}: {avg.toFixed(1)}%
-                      </span>
-                    ))}
-                  </div>
+                  <details className="text-sm">
+                    <summary className="cursor-pointer text-muted-foreground">Category breakdown</summary>
+                    <div className="mt-3 flex flex-wrap gap-3">
+                      {Object.entries(item.grade.categoryAverages).map(([cat, avg]) => (
+                        <span key={cat} className="rounded-md border px-2 py-1 text-xs">
+                          {cat}: {avg.toFixed(1)}%
+                        </span>
+                      ))}
+                    </div>
+                  </details>
                 </CardContent>
               </Card>
             ))}

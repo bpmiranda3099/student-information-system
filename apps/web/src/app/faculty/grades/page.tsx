@@ -1,9 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { RoleGuard } from '@/components/role-guard';
+import { PageHeader } from '@/components/page-header';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,9 +14,28 @@ import { apiClient } from '@/lib/api-client';
 import { ids } from '@/lib/element-ids';
 import type { CourseSection } from '@sis/shared';
 
+type GradeRow = {
+  studentId: string;
+  studentName: string;
+  finalScore: number;
+  letterGrade: string;
+  entries?: { componentId: string; score: number }[];
+};
+
 export default function FacultyGradesPage() {
+  return (
+    <RoleGuard role="faculty">
+      <Suspense fallback={<p className="text-sm text-muted-foreground">Loading…</p>}>
+        <FacultyGradesContent />
+      </Suspense>
+    </RoleGuard>
+  );
+}
+
+function FacultyGradesContent() {
   const queryClient = useQueryClient();
-  const [sectionId, setSectionId] = useState('');
+  const searchParams = useSearchParams();
+  const [sectionId, setSectionId] = useState(searchParams.get('section') ?? '');
   const [scores, setScores] = useState<Record<string, number>>({});
 
   const { data: sections } = useQuery({
@@ -26,12 +47,23 @@ export default function FacultyGradesPage() {
     queryKey: ['grades', sectionId],
     queryFn: () =>
       apiClient<{
-        scheme: unknown;
+        scheme: { categoryWeights: { type: string; weight: number }[] } | null;
         components: { id: string; name: string; maxScore: number; type: string }[];
-        grades: { studentId: string; studentName: string; finalScore: number; letterGrade: string }[];
+        grades: GradeRow[];
       }>(`/sections/${sectionId}/grades`),
     enabled: !!sectionId,
   });
+
+  useEffect(() => {
+    if (!gradeData) return;
+    const initial: Record<string, number> = {};
+    for (const grade of gradeData.grades) {
+      for (const entry of grade.entries ?? []) {
+        initial[`${grade.studentId}-${entry.componentId}`] = entry.score;
+      }
+    }
+    setScores(initial);
+  }, [gradeData]);
 
   const saveMutation = useMutation({
     mutationFn: ({ studentId, componentId, score }: { studentId: string; componentId: string; score: number }) =>
@@ -47,14 +79,12 @@ export default function FacultyGradesPage() {
   });
 
   return (
-    <RoleGuard role="faculty">
-      <div id={ids.faculty.grades.page}>
-        <div>
-          <h1 id={ids.faculty.grades.title} className="text-2xl font-semibold tracking-tight">
-            Grade Encoding
-          </h1>
-          <p className="text-sm text-muted-foreground">Enter scores per student and component</p>
-        </div>
+    <div id={ids.faculty.grades.page} className="space-y-8">
+        <PageHeader
+          titleId={ids.faculty.grades.title}
+          title="Grade Encoding"
+          description="Enter scores per student and component"
+        />
 
         <div className="space-y-2">
           <Label htmlFor={ids.faculty.grades.sectionSelect}>Section</Label>
@@ -73,6 +103,21 @@ export default function FacultyGradesPage() {
           </select>
         </div>
 
+        {sectionId && gradeData?.scheme ? (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Grade scheme weights</CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-wrap gap-2">
+              {gradeData.scheme.categoryWeights.map((w) => (
+                <span key={w.type} className="rounded-md border px-2 py-1 text-xs">
+                  {w.type}: {w.weight}%
+                </span>
+              ))}
+            </CardContent>
+          </Card>
+        ) : null}
+
         {sectionId && gradeData && (
           <Card id={ids.faculty.grades.sheet}>
             <CardHeader>
@@ -81,13 +126,22 @@ export default function FacultyGradesPage() {
             <CardContent>
               {isLoading ? (
                 <p className="text-sm text-muted-foreground">Loading…</p>
+              ) : !gradeData.components.length ? (
+                <p className="text-sm text-muted-foreground">
+                  No grade components configured for this section yet.
+                </p>
               ) : (
                 <Table id={ids.faculty.grades.table}>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Student</TableHead>
                       {gradeData.components.map((c) => (
-                        <TableHead key={c.id}>{c.name}</TableHead>
+                        <TableHead key={c.id}>
+                          {c.name}
+                          <span className="block text-xs font-normal text-muted-foreground">
+                            max {c.maxScore}
+                          </span>
+                        </TableHead>
                       ))}
                       <TableHead>Final</TableHead>
                     </TableRow>
@@ -134,7 +188,6 @@ export default function FacultyGradesPage() {
             </CardContent>
           </Card>
         )}
-      </div>
-    </RoleGuard>
+    </div>
   );
 }

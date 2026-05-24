@@ -23,6 +23,17 @@ test.describe('Smoke tests', () => {
     await expect(page.locator('#sis-student-dashboard-title')).toBeVisible();
   });
 
+  test('student can open My Courses from sidebar', async ({ page }) => {
+    await page.goto('/login');
+    await page.locator('#sis-login-email').fill('student@sis.edu');
+    await page.locator('#sis-login-password').fill('Password123!');
+    await page.locator('#sis-login-submit').click();
+    await page.waitForURL(/\/student/);
+    await page.locator('#sis-nav-student-courses').click();
+    await page.waitForURL(/\/student\/courses/);
+    await expect(page.locator('#sis-student-courses-title')).toBeVisible();
+  });
+
   test('faculty can log in', async ({ page }) => {
     await page.goto('/login');
     await page.locator('#sis-login-email').fill('faculty@sis.edu');
@@ -32,13 +43,15 @@ test.describe('Smoke tests', () => {
     await expect(page.locator('#sis-faculty-dashboard-title')).toBeVisible();
   });
 
-  test('admin can log in', async ({ page }) => {
+  test('admin can log in and see renamed nav labels', async ({ page }) => {
     await page.goto('/login');
     await page.locator('#sis-login-email').fill('admin@sis.edu');
     await page.locator('#sis-login-password').fill('Password123!');
     await page.locator('#sis-login-submit').click();
     await page.waitForURL(/\/admin/);
     await expect(page.locator('#sis-admin-dashboard-title')).toBeVisible();
+    await expect(page.locator('#sis-nav-admin-subjects')).toHaveText('Catalog');
+    await expect(page.locator('#sis-nav-admin-maintenance')).toHaveText('Academic Setup');
   });
 });
 

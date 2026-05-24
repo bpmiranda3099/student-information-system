@@ -1,30 +1,51 @@
 'use client';
 
+import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { RoleGuard } from '@/components/role-guard';
+import { PageHeader } from '@/components/page-header';
+import { DataTable } from '@/components/data-table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { apiClient } from '@/lib/api-client';
 import { ids } from '@/lib/element-ids';
 
+type EnrollmentRow = {
+  id: string;
+  status: string;
+  studentName?: string;
+  section?: { subject?: { code: string }; sectionCode: string };
+};
+
+const STATUS_TABS = ['all', 'pending', 'approved', 'dropped'] as const;
+type StatusTab = (typeof STATUS_TABS)[number];
+
 export default function AdminEnrollmentPage() {
   const queryClient = useQueryClient();
+  const [statusTab, setStatusTab] = useState<StatusTab>('all');
 
   const { data, isLoading } = useQuery({
     queryKey: ['enrollments'],
-    queryFn: () =>
-      apiClient<{
-        enrollments: {
-          id: string;
-          status: string;
-          studentName?: string;
-          section?: { subject?: { code: string }; sectionCode: string };
-        }[];
-      }>('/enrollments'),
+    queryFn: () => apiClient<{ enrollments: EnrollmentRow[] }>('/enrollments'),
   });
+
+  const counts = useMemo(() => {
+    const all = data?.enrollments ?? [];
+    return {
+      all: all.length,
+      pending: all.filter((e) => e.status === 'pending').length,
+      approved: all.filter((e) => e.status === 'approved').length,
+      dropped: all.filter((e) => e.status === 'dropped').length,
+    };
+  }, [data]);
+
+  const filtered = useMemo(() => {
+    const all = data?.enrollments ?? [];
+    if (statusTab === 'all') return all;
+    return all.filter((e) => e.status === statusTab);
+  }, [data, statusTab]);
 
   const updateMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) =>
@@ -37,12 +58,24 @@ export default function AdminEnrollmentPage() {
 
   return (
     <RoleGuard role="admin">
-      <div id={ids.admin.enrollment.page}>
-        <div>
-          <h1 id={ids.admin.enrollment.title} className="text-2xl font-semibold tracking-tight">
-            Enrollment Management
-          </h1>
-          <p className="text-sm text-muted-foreground">Approve or drop enrollment requests</p>
+      <div id={ids.admin.enrollment.page} className="space-y-8">
+        <PageHeader
+          titleId={ids.admin.enrollment.title}
+          title="Enrollment Management"
+          description={`${counts.pending} pending · ${counts.approved} approved · ${counts.dropped} dropped`}
+        />
+
+        <div className="flex flex-wrap gap-2">
+          {STATUS_TABS.map((tab) => (
+            <Button
+              key={tab}
+              size="sm"
+              variant={statusTab === tab ? 'default' : 'outline'}
+              onClick={() => setStatusTab(tab)}
+            >
+              {tab.charAt(0).toUpperCase() + tab.slice(1)} ({counts[tab]})
+            </Button>
+          ))}
         </div>
 
         <Card>
@@ -50,50 +83,54 @@ export default function AdminEnrollmentPage() {
             {isLoading ? (
               <p className="text-sm text-muted-foreground">Loading…</p>
             ) : (
-              <Table id={ids.admin.enrollment.table}>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Student</TableHead>
-                    <TableHead>Section</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {data?.enrollments.map((e) => (
-                    <TableRow key={e.id}>
-                      <TableCell>{e.studentName ?? '—'}</TableCell>
-                      <TableCell>
-                        {e.section?.subject?.code} — {e.section?.sectionCode}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="secondary">{e.status}</Badge>
-                      </TableCell>
-                      <TableCell className="space-x-2">
-                        {e.status === 'pending' && (
-                          <>
-                            <Button
-                              id={ids.admin.enrollment.approve(e.id)}
-                              size="sm"
-                              onClick={() => updateMutation.mutate({ id: e.id, status: 'approved' })}
-                            >
-                              Approve
-                            </Button>
-                            <Button
-                              id={ids.admin.enrollment.drop(e.id)}
-                              size="sm"
-                              variant="outline"
-                              onClick={() => updateMutation.mutate({ id: e.id, status: 'dropped' })}
-                            >
-                              Drop
-                            </Button>
-                          </>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              <DataTable
+                id={ids.admin.enrollment.table}
+                rows={filtered}
+                rowKey={(e) => e.id}
+                emptyMessage="No enrollments in this category."
+                columns={[
+                  { key: 'student', header: 'Student', cell: (e) => e.studentName ?? '—' },
+                  {
+                    key: 'section',
+                    header: 'Section',
+                    cell: (e) =>
+                      e.section
+                        ? `${e.section.subject?.code ?? '—'} — ${e.section.sectionCode}`
+                        : '—',
+                  },
+                  {
+                    key: 'status',
+                    header: 'Status',
+                    cell: (e) => <Badge variant="secondary">{e.status}</Badge>,
+                  },
+                  {
+                    key: 'actions',
+                    header: 'Actions',
+                    cell: (e) =>
+                      e.status === 'pending' ? (
+                        <div className="space-x-2">
+                          <Button
+                            id={ids.admin.enrollment.approve(e.id)}
+                            size="sm"
+                            onClick={() => updateMutation.mutate({ id: e.id, status: 'approved' })}
+                          >
+                            Approve
+                          </Button>
+                          <Button
+                            id={ids.admin.enrollment.drop(e.id)}
+                            size="sm"
+                            variant="outline"
+                            onClick={() => updateMutation.mutate({ id: e.id, status: 'dropped' })}
+                          >
+                            Drop
+                          </Button>
+                        </div>
+                      ) : (
+                        '—'
+                      ),
+                  },
+                ]}
+              />
             )}
           </CardContent>
         </Card>

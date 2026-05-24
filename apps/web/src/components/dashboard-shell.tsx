@@ -2,10 +2,28 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Menu, LogOut } from 'lucide-react';
+import {
+  Menu,
+  LogOut,
+  LayoutDashboard,
+  BookOpen,
+  ClipboardList,
+  GraduationCap,
+  CalendarCheck,
+  Sparkles,
+  Users,
+  FileBarChart,
+  Library,
+  Wrench,
+  Mail,
+  HeartPulse,
+  UserPlus,
+} from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/use-auth';
 import { ids, navId } from '@/lib/element-ids';
 import type { Role } from '@sis/shared';
@@ -13,33 +31,86 @@ import type { Role } from '@sis/shared';
 interface NavItem {
   href: string;
   label: string;
+  icon: LucideIcon;
 }
 
-const NAV_BY_ROLE: Record<Role, NavItem[]> = {
+interface NavGroup {
+  section: string;
+  items: NavItem[];
+}
+
+const NAV_BY_ROLE: Record<Role, NavGroup[]> = {
   student: [
-    { href: '/student', label: 'Dashboard' },
-    { href: '/student/enrollment', label: 'Enrollment' },
-    { href: '/student/grades', label: 'Grades' },
-    { href: '/student/attendance', label: 'Attendance' },
-    { href: '/student/ai-lessons', label: 'AI Lessons' },
+    {
+      section: 'Overview',
+      items: [
+        { href: '/student', label: 'Dashboard', icon: LayoutDashboard },
+        { href: '/student/courses', label: 'My Courses', icon: BookOpen },
+      ],
+    },
+    {
+      section: 'Academics',
+      items: [
+        { href: '/student/enrollment', label: 'Enrollment', icon: UserPlus },
+        { href: '/student/grades', label: 'Grades', icon: GraduationCap },
+        { href: '/student/attendance', label: 'Attendance', icon: CalendarCheck },
+      ],
+    },
+    {
+      section: 'Support',
+      items: [{ href: '/student/ai-lessons', label: 'AI Lessons', icon: Sparkles }],
+    },
   ],
   faculty: [
-    { href: '/faculty', label: 'Dashboard' },
-    { href: '/faculty/sections', label: 'Sections' },
-    { href: '/faculty/grades', label: 'Grades' },
-    { href: '/faculty/attendance', label: 'Attendance' },
-    { href: '/faculty/syllabus', label: 'Syllabus & Lessons' },
-    { href: '/faculty/ai', label: 'AI Tailoring' },
+    {
+      section: 'Overview',
+      items: [{ href: '/faculty', label: 'Dashboard', icon: LayoutDashboard }],
+    },
+    {
+      section: 'Teaching',
+      items: [
+        { href: '/faculty/sections', label: 'Sections', icon: BookOpen },
+        { href: '/faculty/grades', label: 'Grades', icon: GraduationCap },
+        { href: '/faculty/attendance', label: 'Attendance', icon: CalendarCheck },
+        { href: '/faculty/syllabus', label: 'Syllabus & Lessons', icon: ClipboardList },
+      ],
+    },
+    {
+      section: 'Tools',
+      items: [{ href: '/faculty/ai', label: 'AI Tailoring', icon: Sparkles }],
+    },
   ],
   admin: [
-    { href: '/admin', label: 'Dashboard' },
-    { href: '/admin/enrollment', label: 'Enrollment' },
-    { href: '/admin/subjects', label: 'Subjects' },
-    { href: '/admin/reports', label: 'Reports' },
-    { href: '/admin/maintenance', label: 'Maintenance' },
-    { href: '/admin/emails', label: 'Emails' },
-    { href: '/admin/health', label: 'Health' },
+    {
+      section: 'Overview',
+      items: [{ href: '/admin', label: 'Dashboard', icon: LayoutDashboard }],
+    },
+    {
+      section: 'Catalog',
+      items: [{ href: '/admin/subjects', label: 'Catalog', icon: Library }],
+    },
+    {
+      section: 'Operations',
+      items: [
+        { href: '/admin/enrollment', label: 'Enrollment', icon: Users },
+        { href: '/admin/reports', label: 'Reports', icon: FileBarChart },
+        { href: '/admin/maintenance', label: 'Academic Setup', icon: Wrench },
+      ],
+    },
+    {
+      section: 'System',
+      items: [
+        { href: '/admin/emails', label: 'Emails', icon: Mail },
+        { href: '/admin/health', label: 'Health', icon: HeartPulse },
+      ],
+    },
   ],
+};
+
+const ROLE_LABELS: Record<Role, string> = {
+  student: 'Student',
+  faculty: 'Faculty',
+  admin: 'Admin',
 };
 
 export function DashboardShell({
@@ -52,7 +123,7 @@ export function DashboardShell({
   const pathname = usePathname();
   const { user, logout } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const navItems = NAV_BY_ROLE[role];
+  const navGroups = NAV_BY_ROLE[role];
 
   return (
     <div id={ids.shell.root} className="min-h-screen bg-background">
@@ -77,27 +148,42 @@ export function DashboardShell({
         <aside
           id={ids.shell.sidebar}
           className={cn(
-            'fixed inset-y-0 left-0 z-40 flex w-56 flex-col border-r bg-background transition-transform md:static md:translate-x-0',
+            'fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r bg-background transition-transform md:sticky md:top-0 md:h-screen md:translate-x-0',
             mobileOpen ? 'translate-x-0' : '-translate-x-full',
           )}
         >
-          <div className="flex h-14 shrink-0 items-center border-b px-6">
+          <div className="flex shrink-0 flex-col gap-2 border-b px-5 py-4">
             <span className="text-sm font-semibold tracking-tight">Student Information System</span>
+            <Badge variant="secondary" className="w-fit capitalize">
+              {ROLE_LABELS[role]}
+            </Badge>
           </div>
-          <nav id={ids.shell.nav} className="min-h-0 flex-1 space-y-1 overflow-y-auto p-4">
-            {navItems.map((item) => (
-              <Link
-                key={item.href}
-                id={navId(item.href)}
-                href={item.href}
-                onClick={() => setMobileOpen(false)}
-                className={cn(
-                  'block rounded-md px-3 py-2 text-sm transition-colors hover:bg-accent/50',
-                  pathname === item.href ? 'bg-accent/50 font-medium' : 'text-muted-foreground',
-                )}
-              >
-                {item.label}
-              </Link>
+          <nav id={ids.shell.nav} className="min-h-0 flex-1 space-y-5 overflow-y-auto p-4">
+            {navGroups.map((group) => (
+              <div key={group.section} className="space-y-1">
+                <p className="px-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  {group.section}
+                </p>
+                {group.items.map((item) => {
+                  const Icon = item.icon;
+                  const active = pathname === item.href;
+                  return (
+                    <Link
+                      key={item.href}
+                      id={navId(item.href)}
+                      href={item.href}
+                      onClick={() => setMobileOpen(false)}
+                      className={cn(
+                        'flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors hover:bg-accent/50',
+                        active ? 'bg-accent/50 font-medium text-foreground' : 'text-muted-foreground',
+                      )}
+                    >
+                      <Icon className="size-4 shrink-0" />
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </div>
             ))}
           </nav>
           <div className="shrink-0 border-t p-4">
@@ -117,8 +203,8 @@ export function DashboardShell({
           </div>
         </aside>
 
-        <main id={ids.shell.main} className="flex-1">
-          <div id={ids.shell.content} className="mx-auto max-w-4xl px-4 py-8 md:px-6 md:py-12">
+        <main id={ids.shell.main} className="min-w-0 flex-1">
+          <div id={ids.shell.content} className="mx-auto max-w-6xl px-4 py-8 md:px-6 md:py-12">
             <div className="space-y-8">{children}</div>
           </div>
         </main>
