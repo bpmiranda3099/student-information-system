@@ -97,6 +97,19 @@ export const ids = {
       list: 'sis-student-ai-lessons-list',
       empty: 'sis-student-ai-lessons-empty',
     },
+    profile: {
+      page: 'sis-student-profile-page',
+      title: 'sis-student-profile-title',
+    },
+    schedule: {
+      page: 'sis-student-schedule-page',
+      title: 'sis-student-schedule-title',
+      grid: 'sis-student-schedule-grid',
+    },
+    news: {
+      page: 'sis-student-news-page',
+      title: 'sis-student-news-title',
+    },
   },
   faculty: {
     dashboard: {
@@ -146,6 +159,19 @@ export const ids = {
       tailorButton: 'sis-faculty-ai-tailor-button',
       requestsList: 'sis-faculty-ai-requests-list',
     },
+    profile: {
+      page: 'sis-faculty-profile-page',
+      title: 'sis-faculty-profile-title',
+    },
+    schedule: {
+      page: 'sis-faculty-schedule-page',
+      title: 'sis-faculty-schedule-title',
+      grid: 'sis-faculty-schedule-grid',
+    },
+    news: {
+      page: 'sis-faculty-news-page',
+      title: 'sis-faculty-news-title',
+    },
   },
   admin: {
     dashboard: {
@@ -182,6 +208,28 @@ export const ids = {
       title: 'sis-admin-maintenance-title',
       archiveList: 'sis-admin-maintenance-archive-list',
       jobsTable: 'sis-admin-maintenance-jobs-table',
+      users: {
+        page: 'sis-admin-maintenance-users-page',
+      },
+      data: {
+        page: 'sis-admin-maintenance-data-page',
+      },
+    },
+    academicSetup: {
+      page: 'sis-admin-academic-setup-page',
+      title: 'sis-admin-academic-setup-title',
+      archiveList: 'sis-admin-academic-setup-archive-list',
+      jobsTable: 'sis-admin-academic-setup-jobs-table',
+    },
+    calendar: {
+      page: 'sis-admin-calendar-page',
+      title: 'sis-admin-calendar-title',
+      table: 'sis-admin-calendar-table',
+    },
+    announcements: {
+      page: 'sis-admin-announcements-page',
+      title: 'sis-admin-announcements-title',
+      inbox: 'sis-admin-announcements-inbox',
     },
     health: {
       page: 'sis-admin-health-page',

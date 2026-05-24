@@ -6,6 +6,12 @@ import {
   GRADE_COMPONENT_TYPES,
   ATTENDANCE_STATUSES,
   AI_REQUEST_STATUSES,
+  CALENDAR_EVENT_TYPES,
+  CALENDAR_EVENT_SOURCES,
+  ANNOUNCEMENT_CATEGORIES,
+  ANNOUNCEMENT_SEVERITIES,
+  ANNOUNCEMENT_SOURCES,
+  EXTERNAL_ALERT_PROVIDERS,
 } from './constants.js';
 
 export const roleSchema = z.enum(ROLES);
@@ -14,6 +20,12 @@ export const termStatusSchema = z.enum(TERM_STATUSES);
 export const gradeComponentTypeSchema = z.enum(GRADE_COMPONENT_TYPES);
 export const attendanceStatusSchema = z.enum(ATTENDANCE_STATUSES);
 export const aiRequestStatusSchema = z.enum(AI_REQUEST_STATUSES);
+export const calendarEventTypeSchema = z.enum(CALENDAR_EVENT_TYPES);
+export const calendarEventSourceSchema = z.enum(CALENDAR_EVENT_SOURCES);
+export const announcementCategorySchema = z.enum(ANNOUNCEMENT_CATEGORIES);
+export const announcementSeveritySchema = z.enum(ANNOUNCEMENT_SEVERITIES);
+export const announcementSourceSchema = z.enum(ANNOUNCEMENT_SOURCES);
+export const externalAlertProviderSchema = z.enum(EXTERNAL_ALERT_PROVIDERS);
 
 export const loginRequestSchema = z.object({
   email: z.string().email(),
@@ -37,6 +49,10 @@ export const userSchema = z.object({
   firstName: z.string(),
   lastName: z.string(),
   role: roleSchema,
+  photoPath: z.string().nullable().optional(),
+  bio: z.string().nullable().optional(),
+  phone: z.string().nullable().optional(),
+  isActive: z.boolean().optional(),
   createdAt: z.string().datetime(),
 });
 
@@ -345,6 +361,146 @@ export const attendanceReportSchema = z.object({
   ),
 });
 
+export const sectionMeetingSchema = z.object({
+  id: z.string().uuid(),
+  sectionId: z.string().uuid(),
+  dayOfWeek: z.number().int().min(0).max(6),
+  startTime: z.string(),
+  endTime: z.string(),
+  room: z.string().nullable(),
+});
+
+export const upsertSectionMeetingsSchema = z.object({
+  meetings: z.array(
+    z.object({
+      dayOfWeek: z.number().int().min(0).max(6),
+      startTime: z.string().regex(/^\d{2}:\d{2}$/),
+      endTime: z.string().regex(/^\d{2}:\d{2}$/),
+      room: z.string().optional(),
+    }),
+  ),
+});
+
+export const scheduleEntrySchema = z.object({
+  sectionId: z.string().uuid(),
+  sectionCode: z.string(),
+  subjectCode: z.string(),
+  subjectTitle: z.string(),
+  room: z.string().nullable(),
+  meetings: z.array(sectionMeetingSchema),
+});
+
+export const academicCalendarEventSchema = z.object({
+  id: z.string().uuid(),
+  termId: z.string().uuid().nullable(),
+  title: z.string(),
+  description: z.string().nullable(),
+  startDate: z.string(),
+  endDate: z.string(),
+  type: calendarEventTypeSchema,
+  source: calendarEventSourceSchema,
+  externalId: z.string().nullable(),
+  allDay: z.boolean(),
+  createdAt: z.string().datetime(),
+});
+
+export const createCalendarEventSchema = z.object({
+  termId: z.string().uuid().optional(),
+  title: z.string().min(1),
+  description: z.string().optional(),
+  startDate: z.string(),
+  endDate: z.string(),
+  type: calendarEventTypeSchema,
+  allDay: z.boolean().optional(),
+});
+
+export const updateCalendarEventSchema = createCalendarEventSchema.partial();
+
+export const profileSchema = z.object({
+  id: z.string().uuid(),
+  email: z.string().email(),
+  firstName: z.string(),
+  lastName: z.string(),
+  role: roleSchema,
+  photoPath: z.string().nullable(),
+  photoUrl: z.string().nullable().optional(),
+  bio: z.string().nullable(),
+  phone: z.string().nullable(),
+  studentNumber: z.string().optional(),
+  employeeId: z.string().optional(),
+  programCode: z.string().optional(),
+  programName: z.string().optional(),
+  yearLevel: z.number().optional(),
+  department: z.string().nullable().optional(),
+});
+
+export const updateProfileSchema = z.object({
+  firstName: z.string().min(1).optional(),
+  lastName: z.string().min(1).optional(),
+  bio: z.string().max(2000).optional(),
+  phone: z.string().max(30).optional(),
+});
+
+export const announcementSchema = z.object({
+  id: z.string().uuid(),
+  title: z.string(),
+  body: z.string(),
+  category: announcementCategorySchema,
+  severity: announcementSeveritySchema,
+  publishedAt: z.string().datetime(),
+  expiresAt: z.string().datetime().nullable(),
+  source: announcementSourceSchema,
+  externalAlertId: z.string().uuid().nullable(),
+  createdAt: z.string().datetime(),
+});
+
+export const createAnnouncementSchema = z.object({
+  title: z.string().min(1),
+  body: z.string().min(1),
+  category: announcementCategorySchema,
+  severity: announcementSeveritySchema.optional(),
+  publishedAt: z.string().datetime().optional(),
+  expiresAt: z.string().datetime().optional(),
+});
+
+export const updateAnnouncementSchema = createAnnouncementSchema.partial();
+
+export const externalAlertSchema = z.object({
+  id: z.string().uuid(),
+  provider: externalAlertProviderSchema,
+  externalId: z.string(),
+  title: z.string(),
+  summary: z.string(),
+  category: announcementCategorySchema,
+  severity: announcementSeveritySchema,
+  issuedAt: z.string().datetime(),
+  dismissed: z.boolean(),
+  createdAt: z.string().datetime(),
+});
+
+export const adminCreateUserSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(8),
+  firstName: z.string().min(1),
+  lastName: z.string().min(1),
+  role: roleSchema,
+  studentNumber: z.string().optional(),
+  employeeId: z.string().optional(),
+  programId: z.string().uuid().optional(),
+});
+
+export const adminUpdateUserSchema = z.object({
+  email: z.string().email().optional(),
+  firstName: z.string().min(1).optional(),
+  lastName: z.string().min(1).optional(),
+  role: roleSchema.optional(),
+  isActive: z.boolean().optional(),
+});
+
+export const adminResetPasswordSchema = z.object({
+  password: z.string().min(8),
+});
+
 export const sendEmailSchema = z.object({
   to: z.union([z.string().email(), z.array(z.string().email()).min(1)]),
   subject: z.string().min(1),
@@ -387,3 +543,9 @@ export type Lesson = z.infer<typeof lessonSchema>;
 export type LessonFile = z.infer<typeof lessonFileSchema>;
 export type AiLessonRequest = z.infer<typeof aiLessonRequestSchema>;
 export type HealthCheck = z.infer<typeof healthCheckSchema>;
+export type SectionMeeting = z.infer<typeof sectionMeetingSchema>;
+export type ScheduleEntry = z.infer<typeof scheduleEntrySchema>;
+export type AcademicCalendarEvent = z.infer<typeof academicCalendarEventSchema>;
+export type Profile = z.infer<typeof profileSchema>;
+export type Announcement = z.infer<typeof announcementSchema>;
+export type ExternalAlert = z.infer<typeof externalAlertSchema>;

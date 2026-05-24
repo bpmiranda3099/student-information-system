@@ -43,3 +43,26 @@ services:
         sync: false
       - key: COOKIE_SAME_SITE
         value: lax
+
+  - type: cron
+    name: sis-alert-sync
+    runtime: node
+    schedule: "*/15 * * * *"
+    buildCommand: pnpm install --frozen-lockfile && pnpm --filter @sis/api db:generate && pnpm exec turbo run build --filter=@sis/api
+    startCommand: node apps/api/dist/jobs/sync-external-alerts.js
+    buildFilter:
+      paths:
+        - apps/api/**
+        - packages/shared/**
+        - pnpm-lock.yaml
+        - package.json
+        - pnpm-workspace.yaml
+        - turbo.json
+        - render.yaml
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_URL
+        sync: false

@@ -23,15 +23,18 @@ test.describe('Smoke tests', () => {
     await expect(page.locator('#sis-student-dashboard-title')).toBeVisible();
   });
 
-  test('student can open My Courses from sidebar', async ({ page }) => {
+  test('student can open profile and schedule from sidebar', async ({ page }) => {
     await page.goto('/login');
     await page.locator('#sis-login-email').fill('student@sis.edu');
     await page.locator('#sis-login-password').fill('Password123!');
     await page.locator('#sis-login-submit').click();
     await page.waitForURL(/\/student/);
-    await page.locator('#sis-nav-student-courses').click();
-    await page.waitForURL(/\/student\/courses/);
-    await expect(page.locator('#sis-student-courses-title')).toBeVisible();
+    await page.locator('#sis-nav-student-profile').click();
+    await page.waitForURL(/\/student\/profile/);
+    await expect(page.locator('#sis-student-profile-title')).toBeVisible();
+    await page.locator('#sis-nav-student-schedule').click();
+    await page.waitForURL(/\/student\/schedule/);
+    await expect(page.locator('#sis-student-schedule-title')).toBeVisible();
   });
 
   test('faculty can log in', async ({ page }) => {
@@ -43,7 +46,7 @@ test.describe('Smoke tests', () => {
     await expect(page.locator('#sis-faculty-dashboard-title')).toBeVisible();
   });
 
-  test('admin can log in and see renamed nav labels', async ({ page }) => {
+  test('admin can log in and see updated nav labels', async ({ page }) => {
     await page.goto('/login');
     await page.locator('#sis-login-email').fill('admin@sis.edu');
     await page.locator('#sis-login-password').fill('Password123!');
@@ -51,7 +54,10 @@ test.describe('Smoke tests', () => {
     await page.waitForURL(/\/admin/);
     await expect(page.locator('#sis-admin-dashboard-title')).toBeVisible();
     await expect(page.locator('#sis-nav-admin-subjects')).toHaveText('Catalog');
-    await expect(page.locator('#sis-nav-admin-maintenance')).toHaveText('Academic Setup');
+    await expect(page.locator('#sis-nav-admin-academic-setup')).toHaveText('Academic Setup');
+    await expect(page.locator('#sis-nav-admin-maintenance')).toHaveText('Maintenance');
+    await expect(page.locator('#sis-nav-admin-calendar')).toHaveText('Calendar');
+    await expect(page.locator('#sis-nav-admin-announcements')).toHaveText('Announcements');
   });
 });
 

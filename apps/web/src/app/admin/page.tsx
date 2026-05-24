@@ -5,6 +5,8 @@ import { useQuery } from '@tanstack/react-query';
 import { AlertCircle, CheckCircle2 } from 'lucide-react';
 import { RoleGuard } from '@/components/role-guard';
 import { PageHeader } from '@/components/page-header';
+import { AnnouncementBanner } from '@/components/announcement-banner';
+import { UpcomingCalendar } from '@/components/upcoming-calendar';
 import { StatCard } from '@/components/stat-card';
 import { DataTable } from '@/components/data-table';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -64,6 +66,8 @@ export default function AdminDashboardPage() {
           }
         />
 
+        <AnnouncementBanner id="sis-admin-dashboard-banner" />
+
         {pendingCount > 0 ? (
           <Card className="border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30">
             <CardContent className="flex items-start gap-3 pt-6">
@@ -113,7 +117,7 @@ export default function AdminDashboardPage() {
               ))}
               {!hasActiveTerm || !hasSections ? (
                 <Link
-                  href="/admin/maintenance"
+                  href="/admin/academic-setup"
                   className="inline-block text-sm text-primary underline-offset-4 hover:underline"
                 >
                   Open Academic Setup
@@ -148,6 +152,8 @@ export default function AdminDashboardPage() {
             </CardContent>
           </Card>
         </div>
+
+        <UpcomingCalendar id="sis-admin-dashboard-calendar" />
       </div>
     </RoleGuard>
   );

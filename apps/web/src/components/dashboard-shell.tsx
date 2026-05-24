@@ -18,6 +18,11 @@ import {
   Mail,
   HeartPulse,
   UserPlus,
+  User,
+  Calendar,
+  Clock,
+  Megaphone,
+  Settings,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useState } from 'react';
@@ -46,30 +51,39 @@ const NAV_BY_ROLE: Record<Role, NavGroup[]> = {
       items: [
         { href: '/student', label: 'Dashboard', icon: LayoutDashboard },
         { href: '/student/courses', label: 'My Courses', icon: BookOpen },
+        { href: '/student/profile', label: 'Profile', icon: User },
       ],
     },
     {
       section: 'Academics',
       items: [
         { href: '/student/enrollment', label: 'Enrollment', icon: UserPlus },
+        { href: '/student/schedule', label: 'Schedule', icon: Clock },
         { href: '/student/grades', label: 'Grades', icon: GraduationCap },
         { href: '/student/attendance', label: 'Attendance', icon: CalendarCheck },
       ],
     },
     {
       section: 'Support',
-      items: [{ href: '/student/ai-lessons', label: 'AI Lessons', icon: Sparkles }],
+      items: [
+        { href: '/student/ai-lessons', label: 'AI Lessons', icon: Sparkles },
+        { href: '/student/news', label: 'News & Alerts', icon: Megaphone },
+      ],
     },
   ],
   faculty: [
     {
       section: 'Overview',
-      items: [{ href: '/faculty', label: 'Dashboard', icon: LayoutDashboard }],
+      items: [
+        { href: '/faculty', label: 'Dashboard', icon: LayoutDashboard },
+        { href: '/faculty/profile', label: 'Profile', icon: User },
+      ],
     },
     {
       section: 'Teaching',
       items: [
         { href: '/faculty/sections', label: 'Sections', icon: BookOpen },
+        { href: '/faculty/schedule', label: 'Schedule', icon: Clock },
         { href: '/faculty/grades', label: 'Grades', icon: GraduationCap },
         { href: '/faculty/attendance', label: 'Attendance', icon: CalendarCheck },
         { href: '/faculty/syllabus', label: 'Syllabus & Lessons', icon: ClipboardList },
@@ -77,7 +91,10 @@ const NAV_BY_ROLE: Record<Role, NavGroup[]> = {
     },
     {
       section: 'Tools',
-      items: [{ href: '/faculty/ai', label: 'AI Tailoring', icon: Sparkles }],
+      items: [
+        { href: '/faculty/ai', label: 'AI Tailoring', icon: Sparkles },
+        { href: '/faculty/news', label: 'News & Alerts', icon: Megaphone },
+      ],
     },
   ],
   admin: [
@@ -93,13 +110,16 @@ const NAV_BY_ROLE: Record<Role, NavGroup[]> = {
       section: 'Operations',
       items: [
         { href: '/admin/enrollment', label: 'Enrollment', icon: Users },
+        { href: '/admin/calendar', label: 'Calendar', icon: Calendar },
         { href: '/admin/reports', label: 'Reports', icon: FileBarChart },
-        { href: '/admin/maintenance', label: 'Academic Setup', icon: Wrench },
+        { href: '/admin/announcements', label: 'Announcements', icon: Megaphone },
+        { href: '/admin/academic-setup', label: 'Academic Setup', icon: Settings },
       ],
     },
     {
       section: 'System',
       items: [
+        { href: '/admin/maintenance', label: 'Maintenance', icon: Wrench },
         { href: '/admin/emails', label: 'Emails', icon: Mail },
         { href: '/admin/health', label: 'Health', icon: HeartPulse },
       ],

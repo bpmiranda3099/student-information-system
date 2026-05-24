@@ -1,8 +1,17 @@
 import { Router, type Router as RouterType } from 'express';
+import bcrypt from 'bcryptjs';
+import {
+  adminCreateUserSchema,
+  adminUpdateUserSchema,
+  adminResetPasswordSchema,
+  computeGrade,
+  type GradeComponentType,
+} from '@sis/shared';
 import { prisma } from '../lib/prisma.js';
 import { routeParam } from '../lib/params.js';
-import { computeGrade, type GradeComponentType } from '@sis/shared';
+import { serializeUser } from '../lib/serializers.js';
 import { authenticate, authorize } from '../middleware/auth.js';
+import { validateBody } from '../middleware/validate.js';
 
 const router: RouterType = Router();
 
@@ -198,14 +207,148 @@ router.post('/maintenance/archive-term/:termId', authenticate, authorize('admin'
 
 router.get('/maintenance/jobs', authenticate, authorize('admin'), async (_req, res, next) => {
   try {
-    const jobs = await prisma.maintenanceJob.findMany({
-      orderBy: { createdAt: 'desc' },
-      take: 20,
-    });
-    res.json({ jobs });
+    const [jobs, alertLogs] = await Promise.all([
+      prisma.maintenanceJob.findMany({ orderBy: { createdAt: 'desc' }, take: 20 }),
+      prisma.alertFetchLog.findMany({ orderBy: { ranAt: 'desc' }, take: 20 }),
+    ]);
+    res.json({ jobs, alertLogs });
   } catch (err) {
     next(err);
   }
 });
+
+router.get('/maintenance/orphans', authenticate, authorize('admin'), async (_req, res, next) => {
+  try {
+    const [sectionsMissingFaculty, enrollmentsOnArchivedTerms] = await Promise.all([
+      prisma.courseSection.findMany({
+        where: { faculty: { user: { isActive: false } } },
+        include: { subject: true, term: true },
+        take: 50,
+      }),
+      prisma.enrollment.findMany({
+        where: { section: { term: { status: 'archived' } }, status: 'approved' },
+        include: { student: { include: { user: true } }, section: { include: { subject: true, term: true } } },
+        take: 50,
+      }),
+    ]);
+    res.json({
+      orphans: {
+        sectionsMissingFaculty: sectionsMissingFaculty.length,
+        enrollmentsOnArchivedTerms: enrollmentsOnArchivedTerms.length,
+        sections: sectionsMissingFaculty.map((s) => ({
+          id: s.id,
+          label: `${s.subject.code} — ${s.sectionCode}`,
+          term: s.term.name,
+        })),
+        enrollments: enrollmentsOnArchivedTerms.map((e) => ({
+          id: e.id,
+          student: `${e.student.user.lastName}, ${e.student.user.firstName}`,
+          section: `${e.section.subject.code} — ${e.section.sectionCode}`,
+          term: e.section.term.name,
+        })),
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/maintenance/export/enrollments', authenticate, authorize('admin'), async (_req, res, next) => {
+  try {
+    const enrollments = await prisma.enrollment.findMany({
+      include: {
+        student: { include: { user: true, program: true } },
+        section: { include: { subject: true, term: true } },
+      },
+    });
+    const header = 'student_name,student_number,program,subject,section,term,status,enrolled_at';
+    const rows = enrollments.map((e) =>
+      [
+        `"${e.student.user.lastName}, ${e.student.user.firstName}"`,
+        e.student.studentNumber,
+        e.student.program.code,
+        e.section.subject.code,
+        e.section.sectionCode,
+        e.section.term.name,
+        e.status,
+        e.enrolledAt.toISOString(),
+      ].join(','),
+    );
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename=enrollments.csv');
+    res.send([header, ...rows].join('\n'));
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.patch(
+  '/maintenance/users/:id',
+  authenticate,
+  authorize('admin'),
+  validateBody(adminUpdateUserSchema),
+  async (req, res, next) => {
+    try {
+      const user = await prisma.user.update({
+        where: { id: routeParam(req.params.id) },
+        data: req.body,
+      });
+      res.json({ user: serializeUser(user) });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+router.post(
+  '/maintenance/users/:id/reset-password',
+  authenticate,
+  authorize('admin'),
+  validateBody(adminResetPasswordSchema),
+  async (req, res, next) => {
+    try {
+      const passwordHash = await bcrypt.hash(req.body.password, 12);
+      await prisma.user.update({
+        where: { id: routeParam(req.params.id) },
+        data: { passwordHash },
+      });
+      res.json({ message: 'Password reset' });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+router.post(
+  '/maintenance/users',
+  authenticate,
+  authorize('admin'),
+  validateBody(adminCreateUserSchema),
+  async (req, res, next) => {
+    try {
+      const { email, password, firstName, lastName, role, studentNumber, employeeId, programId } =
+        req.body;
+      const passwordHash = await bcrypt.hash(password, 12);
+      const user = await prisma.$transaction(async (tx) => {
+        const newUser = await tx.user.create({
+          data: { email, passwordHash, firstName, lastName, role },
+        });
+        if (role === 'student') {
+          if (!studentNumber || !programId) throw new Error('Student number and program required');
+          await tx.student.create({ data: { userId: newUser.id, studentNumber, programId } });
+        } else if (role === 'faculty') {
+          if (!employeeId) throw new Error('Employee ID required');
+          await tx.faculty.create({ data: { userId: newUser.id, employeeId } });
+        } else {
+          await tx.admin.create({ data: { userId: newUser.id } });
+        }
+        return newUser;
+      });
+      res.status(201).json({ user: serializeUser(user) });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
 
 export default router;

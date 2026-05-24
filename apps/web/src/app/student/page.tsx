@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { RoleGuard } from '@/components/role-guard';
 import { PageHeader } from '@/components/page-header';
+import { AnnouncementBanner } from '@/components/announcement-banner';
+import { UpcomingCalendar } from '@/components/upcoming-calendar';
 import { StatCard } from '@/components/stat-card';
 import { DataTable } from '@/components/data-table';
 import { Button } from '@/components/ui/button';
@@ -60,6 +62,8 @@ export default function StudentDashboardPage() {
             </Button>
           }
         />
+
+        <AnnouncementBanner id="sis-student-dashboard-banner" />
 
         <div id={ids.student.dashboard.kpiGrid} className="grid gap-4 md:grid-cols-4">
           <StatCard
@@ -148,6 +152,8 @@ export default function StudentDashboardPage() {
             </Button>
           </CardContent>
         </Card>
+
+        <UpcomingCalendar id="sis-student-dashboard-calendar" />
       </div>
     </RoleGuard>
   );

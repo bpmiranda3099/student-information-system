@@ -31,6 +31,41 @@ export type AttendanceStatus = (typeof ATTENDANCE_STATUSES)[number];
 export const AI_REQUEST_STATUSES = ['pending', 'completed', 'failed'] as const;
 export type AiRequestStatus = (typeof AI_REQUEST_STATUSES)[number];
 
+export const CALENDAR_EVENT_TYPES = [
+  'holiday',
+  'exam',
+  'enrollment',
+  'break',
+  'event',
+  'no_classes',
+] as const;
+export type CalendarEventType = (typeof CALENDAR_EVENT_TYPES)[number];
+
+export const CALENDAR_EVENT_SOURCES = ['manual', 'official_ph'] as const;
+export type CalendarEventSource = (typeof CALENDAR_EVENT_SOURCES)[number];
+
+export const ANNOUNCEMENT_CATEGORIES = ['news', 'no_classes', 'disaster', 'holiday'] as const;
+export type AnnouncementCategory = (typeof ANNOUNCEMENT_CATEGORIES)[number];
+
+export const ANNOUNCEMENT_SEVERITIES = ['low', 'medium', 'high', 'critical'] as const;
+export type AnnouncementSeverity = (typeof ANNOUNCEMENT_SEVERITIES)[number];
+
+export const ANNOUNCEMENT_SOURCES = ['manual', 'external'] as const;
+export type AnnouncementSource = (typeof ANNOUNCEMENT_SOURCES)[number];
+
+export const EXTERNAL_ALERT_PROVIDERS = [
+  'pagasa',
+  'usgs',
+  'phivolcs',
+  'ndrrmc',
+  'ph_holidays',
+] as const;
+export type ExternalAlertProvider = (typeof EXTERNAL_ALERT_PROVIDERS)[number];
+
+export const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
+
+export const AVATARS_BUCKET = 'avatars';
+
 export const DEFAULT_LETTER_GRADES = [
   { letter: 'A', minScore: 90 },
   { letter: 'B', minScore: 80 },

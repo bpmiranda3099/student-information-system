@@ -7,6 +7,7 @@ export function serializeUser(user: User) {
     firstName: user.firstName,
     lastName: user.lastName,
     role: user.role,
+    isActive: user.isActive,
     createdAt: user.createdAt.toISOString(),
   };
 }

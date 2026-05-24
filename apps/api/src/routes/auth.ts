@@ -35,6 +35,10 @@ router.post('/login', authLimiter, validateBody(loginRequestSchema), async (req,
       res.status(401).json({ error: 'Invalid email or password' });
       return;
     }
+    if (!user.isActive) {
+      res.status(403).json({ error: 'Account is deactivated' });
+      return;
+    }
 
     const payload = { userId: user.id, email: user.email, role: user.role };
     const accessToken = signAccessToken(payload);

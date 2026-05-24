@@ -1,5 +1,5 @@
 import { Router, type Router as RouterType } from 'express';
-import { createProgramSchema, createSubjectSchema, createTermSchema, createSectionSchema } from '@sis/shared';
+import { createProgramSchema, createSubjectSchema, createTermSchema, createSectionSchema, upsertSectionMeetingsSchema } from '@sis/shared';
 import { prisma } from '../lib/prisma.js';
 import { routeParam } from '../lib/params.js';
 import {
@@ -10,6 +10,8 @@ import {
 } from '../lib/serializers.js';
 import { authenticate, authorize } from '../middleware/auth.js';
 import { validateBody } from '../middleware/validate.js';
+import { serializeSectionMeeting } from '../lib/extended-serializers.js';
+import { formatScheduleSummary, parseScheduleText } from '../lib/schedule-utils.js';
 
 const router: RouterType = Router();
 
@@ -164,7 +166,127 @@ router.post('/sections', authenticate, authorize('admin'), validateBody(createSe
       data: req.body,
       include: { subject: true, term: true, _count: { select: { enrollments: true } } },
     });
+
+    const parsed = parseScheduleText(section.schedule);
+    if (parsed.length) {
+      await prisma.sectionMeeting.createMany({
+        data: parsed.map((m) => ({
+          sectionId: section.id,
+          dayOfWeek: m.dayOfWeek,
+          startTime: m.startTime,
+          endTime: m.endTime,
+          room: section.room,
+        })),
+      });
+    }
+
     res.status(201).json({ section: serializeSection(section) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/sections/:sectionId/meetings', authenticate, async (req, res, next) => {
+  try {
+    const meetings = await prisma.sectionMeeting.findMany({
+      where: { sectionId: routeParam(req.params.sectionId) },
+      orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }],
+    });
+    res.json({ meetings: meetings.map(serializeSectionMeeting) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.put(
+  '/sections/:sectionId/meetings',
+  authenticate,
+  authorize('admin'),
+  validateBody(upsertSectionMeetingsSchema),
+  async (req, res, next) => {
+    try {
+      const sectionId = routeParam(req.params.sectionId);
+      const { meetings } = req.body;
+
+      await prisma.$transaction(async (tx) => {
+        await tx.sectionMeeting.deleteMany({ where: { sectionId } });
+        if (meetings.length) {
+          await tx.sectionMeeting.createMany({
+            data: meetings.map((m: { dayOfWeek: number; startTime: string; endTime: string; room?: string }) => ({
+              sectionId,
+              dayOfWeek: m.dayOfWeek,
+              startTime: m.startTime,
+              endTime: m.endTime,
+              room: m.room ?? null,
+            })),
+          });
+        }
+        const summary = formatScheduleSummary(meetings);
+        const room = meetings.find((m: { room?: string }) => m.room)?.room ?? null;
+        await tx.courseSection.update({
+          where: { id: sectionId },
+          data: { schedule: summary || null, room },
+        });
+      });
+
+      const saved = await prisma.sectionMeeting.findMany({
+        where: { sectionId },
+        orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }],
+      });
+      res.json({ meetings: saved.map(serializeSectionMeeting) });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+async function buildScheduleEntries(sectionFilter: object) {
+  const sections = await prisma.courseSection.findMany({
+    where: sectionFilter,
+    include: {
+      subject: true,
+      meetings: { orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }] },
+    },
+  });
+
+  return sections.map((s) => ({
+    sectionId: s.id,
+    sectionCode: s.sectionCode,
+    subjectCode: s.subject.code,
+    subjectTitle: s.subject.title,
+    room: s.room,
+    meetings: s.meetings.map(serializeSectionMeeting),
+  }));
+}
+
+router.get('/students/me/schedule', authenticate, authorize('student'), async (req, res, next) => {
+  try {
+    const student = await prisma.student.findUnique({ where: { userId: req.user!.userId } });
+    if (!student) {
+      res.status(404).json({ error: 'Student profile not found' });
+      return;
+    }
+    const enrollments = await prisma.enrollment.findMany({
+      where: { studentId: student.id, status: 'approved' },
+      select: { sectionId: true },
+    });
+    const sectionIds = enrollments.map((e) => e.sectionId);
+    const schedule = await buildScheduleEntries({ id: { in: sectionIds } });
+    res.json({ schedule });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/faculty/me/schedule', authenticate, authorize('faculty'), async (req, res, next) => {
+  try {
+    const faculty = await prisma.faculty.findUnique({ where: { userId: req.user!.userId } });
+    if (!faculty) {
+      res.status(404).json({ error: 'Faculty profile not found' });
+      return;
+    }
+    const schedule = await buildScheduleEntries({ facultyId: faculty.id });
+    res.json({ schedule });
   } catch (err) {
     next(err);
   }

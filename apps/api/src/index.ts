@@ -12,6 +12,9 @@ import facultyRoutes from './routes/faculty.js';
 import adminRoutes from './routes/admin.js';
 import emailRoutes from './routes/emails.js';
 import healthRoutes from './routes/health.js';
+import profileRoutes from './routes/profiles.js';
+import calendarRoutes from './routes/calendar.js';
+import announcementRoutes from './routes/announcements.js';
 import { errorHandler, notFoundHandler } from './middleware/error.js';
 
 const app: Express = express();
@@ -58,6 +61,9 @@ app.use('/', attendanceRoutes);
 app.use('/', facultyRoutes);
 app.use('/admin', adminRoutes);
 app.use('/admin/emails', emailRoutes);
+app.use('/', profileRoutes);
+app.use('/', calendarRoutes);
+app.use('/', announcementRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);
