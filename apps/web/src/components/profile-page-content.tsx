@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { FlipHorizontal, Printer } from 'lucide-react';
 import { PageHeader } from '@/components/page-header';
 import { IdCard } from '@/components/id-card';
 import { Button } from '@/components/ui/button';
@@ -34,6 +35,7 @@ export function ProfilePageContent({
 
   const [bio, setBio] = useState('');
   const [phone, setPhone] = useState('');
+  const [idCardFlipped, setIdCardFlipped] = useState(false);
 
   useEffect(() => {
     if (data?.profile) {
@@ -83,7 +85,31 @@ export function ProfilePageContent({
         <p className="text-sm text-muted-foreground">Loading profile…</p>
       ) : (
         <div className="grid gap-8 lg:grid-cols-2">
-          <IdCard profile={profile} className="max-w-md" />
+          <div className="flex flex-col items-center gap-4">
+            <IdCard
+              profile={profile}
+              flipped={idCardFlipped}
+              onFlippedChange={setIdCardFlipped}
+            />
+            <p className="text-center text-xs text-muted-foreground">
+              Click card to flip · Use Print for a copy
+            </p>
+            <div className="flex flex-wrap justify-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setIdCardFlipped((f) => !f)}
+              >
+                <FlipHorizontal className="size-4" />
+                Flip card
+              </Button>
+              <Button type="button" variant="outline" size="sm" onClick={() => window.print()}>
+                <Printer className="size-4" />
+                Print
+              </Button>
+            </div>
+          </div>
 
           <Card>
             <CardHeader>

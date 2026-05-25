@@ -21,6 +21,7 @@ import supportRoutes from './routes/support.js';
 import conductRoutes from './routes/conduct.js';
 import registrationRoutes from './routes/registration.js';
 import { errorHandler, notFoundHandler } from './middleware/error.js';
+import { ensureStorageBuckets } from './lib/storage.js';
 
 const app: Express = express();
 const PORT = process.env.PORT ?? 4000;
@@ -84,6 +85,7 @@ app.use(notFoundHandler);
 app.use(errorHandler);
 
 if (process.env.NODE_ENV !== 'test') {
+  void ensureStorageBuckets();
   app.listen(PORT, () => {
     console.log(`SIS API running on port ${PORT}`);
   });

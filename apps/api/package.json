@@ -16,7 +16,8 @@
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
-    "alerts:sync": "tsx src/jobs/sync-external-alerts.ts"
+    "alerts:sync": "tsx src/jobs/sync-external-alerts.ts",
+    "storage:setup": "tsx scripts/ensure-storage-buckets.ts"
   },
   "dependencies": {
     "@google/genai": "^2.6.0",

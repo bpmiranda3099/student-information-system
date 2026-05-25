@@ -127,3 +127,20 @@
     @apply font-sans;
   }
 }
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #sis-id-card,
+  #sis-id-card * {
+    visibility: visible;
+  }
+  #sis-id-card {
+    position: absolute;
+    left: 0;
+    top: 0;
+    max-width: none;
+    width: 100%;
+  }
+}
